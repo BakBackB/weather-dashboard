@@ -205,10 +205,6 @@ weather-dashboard/
 │   ├── filters.js
 │   ├── utils.js
 │   └── charts/
-│       ├── temperature.js
-│       ├── rainfall.js
-│       ├── extremeWeather.js
-│       └── correlation.js
 │
 ├── assets/
 │   ├── icons/
