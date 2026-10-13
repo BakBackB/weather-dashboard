@@ -1,0 +1,4 @@
+location_id,latitude,longitude,elevation,utc_offset_seconds,timezone,timezone_abbreviation
+0,10.790861,106.6313,6.0,25200,Asia/Bangkok,GMT+7
+1,20.49209,106.0423,3.0,25200,Asia/Bangkok,GMT+7
+2,16.48506,107.571434,8.0,25200,Asia/Bangkok,GMT+7
