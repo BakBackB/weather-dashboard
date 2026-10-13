@@ -191,9 +191,6 @@ Interactive Correlation Dashboard featuring:
 weather-dashboard/
 │
 ├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── metadata/
 │
 ├── css/
 │   ├── style.css
