@@ -1,4 +1,4 @@
-location_id,time,weather_code (wmo code),temperature_2m_mean (°C),temperature_2m_max (°C),temperature_2m_min (°C),apparent_temperature_mean (°C),apparent_temperature_max (°C),apparent_temperature_min (°C),precipitation_sum (mm),precipitation_hours (h),wind_speed_10m_max (km/h),wind_speed_10m_min (km/h),winddirection_10m_dominant (°),relative_humidity_2m_mean (%),sunshine_duration (s),daylight_duration (s)
+location_id,time,weather_code,temperature_2m_mean,temperature_2m_max,temperature_2m_min,apparent_temperature_mean,apparent_temperature_max,apparent_temperature_min,precipitation_sum,precipitation_hours,wind_speed_10m_max,wind_speed_10m_min,winddirection_10m_dominant,relative_humidity_2m_mean,sunshine_duration,daylight_duration
 0,01/01/2015,3,24.9,29.9,21.2,27.7,33.5,23.8,0,0,10.3,1.6,38,72,40866.82,41413.4
 0,02/01/2015,3,24.7,28.8,20.2,26.5,30.6,20.8,0,0,8.2,2.1,346,64,32743.16,41422.12
 0,03/01/2015,51,25.8,30.5,22.6,29.3,35,25.5,0.2,2,10.1,1.6,100,73,34976.86,41431.72
