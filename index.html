@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard - Temperature Trends</title>
+    <!-- Favicon -->
+    <link rel="icon" href="assets/icons/meteorology.png" type="image/png">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <!-- Load D3.js v7 -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Temperature Trends Across Cities</h2>
+        
+        <!-- Drill-Down & City Filter Controls -->
+        <div class="controls">
+            <div class="controls-left">
+                <button id="backButton" class="back-btn">← Back to Overview</button>
+                <span id="currentViewLabel" class="view-label">View: 10-Year Overview (By Year)</span>
+            </div>
+
+            <!-- City Selection Checkboxes -->
+            <div id="cityFilters" class="city-filters">
+                <label class="filter-label hcm-label">
+                    <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
+                </label>
+                <label class="filter-label namdinh-label">
+                    <input type="checkbox" value="Nam Dinh" checked> Nam Dinh
+                </label>
+                <label class="filter-label hue-label">
+                    <input type="checkbox" value="Hue" checked> Hue
+                </label>
+            </div>
+        </div>
+
+        <div id="temperature-chart"></div>
+    </div>
+
+    <!-- Modular JavaScript Files -->
+    <script src="js/utils.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/dataLoader.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
