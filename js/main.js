@@ -144,7 +144,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .style("cursor", currentLevel !== "day" ? "pointer" : "default")
             .merge(dots)
             .transition().duration(400)
-            .attr("r", isDense ? 2 : 4) // Radius hierhin verschieben!
+            .attr("r", isDense ? 2 : 4)
             .attr("cx", d => x(d.date))
             .attr("cy", d => y(d.temp))
             .attr("fill", d => color(d.city));
