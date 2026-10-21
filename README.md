@@ -52,9 +52,9 @@ https://open-meteo.com/en/docs/historical-weather-api
 
 | City | Latitude | Longitude |
 |-------|----------|-----------|
-| Hanoi | 21.0285 | 105.8542 |
-| Da Nang | 16.0544 | 108.2022 |
-| Ho Chi Minh City | 10.8231 | 106.6297 |
+| Hanoi | 20.4921	 | 106.0423 |
+| Da Nang | 16.0633 | 108.2386 |
+| Ho Chi Minh City | 10.7909 | 106.6313 |
 
 ---
 
