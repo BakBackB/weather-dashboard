@@ -18,11 +18,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const rootStyles = getComputedStyle(document.documentElement);
     const color = d3.scaleOrdinal()
-                    .domain(["Ho Chi Minh City", "Nam Dinh", "Hue"])
-                    .range([
+                    .domain(["Ho Chi Minh City", "Nam Dinh", "Da Nang"])                    .range([
                         rootStyles.getPropertyValue('--color-hcm').trim() || "#D93856",
                         rootStyles.getPropertyValue('--color-namdinh').trim() || "#0284C7",
-                        rootStyles.getPropertyValue('--color-hue').trim() || "#D97706"
+                        rootStyles.getPropertyValue('--color-danang').trim() || "#D97706"
                     ]);
 
     svg.append("g").attr("class", "y-grid");
@@ -42,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let currentLevel = "year"; // "year" -> "month" -> "day"
     let selectedYear = null;
     let selectedMonth = null;
-    let selectedCities = ["Ho Chi Minh City", "Nam Dinh", "Hue"];
+    let selectedCities = ["Ho Chi Minh City", "Nam Dinh", "Da Nang"];
 
     function updateChart() {
         let data = [];

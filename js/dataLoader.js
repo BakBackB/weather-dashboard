@@ -4,13 +4,15 @@ async function loadWeatherData() {
     try {
         const [locationData, weatherData] = await Promise.all([
             d3.csv("data/location.csv"),
-            d3.csv("data/dailyweather_hcm_hue_hanoi.csv")
+            d3.csv("data/dailyweather_hanoi_danang_hcm.csv")
         ]);
 
+        console.log("csv data loaded successfully:", { locationData, weatherData });
+
         const cityMapping = {
-            "0": "Ho Chi Minh City",
-            "1": "Nam Dinh",
-            "2": "Hue"
+            "0": "Nam Dinh",
+            "1": "Da Nang",
+            "2": "Ho Chi Minh City"
         };
 
         rawParsedWeather = weatherData.map(d => {
