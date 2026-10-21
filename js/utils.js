@@ -1,6 +1,4 @@
-const parseDateDDMMYYYY = d3.timeParse("%d/%m/%Y");
-
-//const parseDateYYYYMMDD = d3.timeParse("%Y-%m-%d")
+const parseDateYYYYMMDD = d3.timeParse("%Y-%m-%d")
 
 const formatYearMonth = d3.timeFormat("%Y-%m");
 const formatYear = d3.timeFormat("%Y");

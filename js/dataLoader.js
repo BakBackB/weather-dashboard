@@ -10,13 +10,13 @@ async function loadWeatherData() {
         console.log("csv data loaded successfully:", { locationData, weatherData });
 
         const cityMapping = {
-            "0": "Nam Dinh",
+            "0": "Hanoi",
             "1": "Da Nang",
             "2": "Ho Chi Minh City"
         };
 
         rawParsedWeather = weatherData.map(d => {
-            const parsedDate = parseDateDDMMYYYY(d.time);
+            const parsedDate = parseDateYYYYMMDD(d.time);
             return {
                 locationId: d.location_id,
                 city: cityMapping[d.location_id] || `Location ${d.location_id}`,

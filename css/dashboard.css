@@ -1,8 +1,12 @@
 :root {
-    --color-hcm:     #D93856; /* Deep Coral Red (Stronger contrast than pastel pink) */
-    --color-namdinh: #0284C7; /* Rich Sky Blue (Clean, professional blue) */
-    --color-danang:     #D97706; /* Rich Amber/Orange (Easily readable vs light yellow) */
+    --color-hcm:     #D93856; /* Red */
+    --color-hanoi:   #0284C7; /* Blue */
+    --color-danang:  #D97706; /* Amber */
 }
+
+.hcm-label input   { accent-color: var(--color-hcm); }
+.hanoi-label input { accent-color: var(--color-hanoi); }
+.danang-label input { accent-color: var(--color-danang); }
 
 #chart {
     display: flex;
@@ -111,8 +115,3 @@
 .filter-label input {
     cursor: pointer;
 }
-
-/* Checkbox Accent Colors matching CSS variables */
-.hcm-label input { accent-color: var(--color-hcm, #D93856); }
-.namdinh-label input { accent-color: var(--color-namdinh, #0284C7); }
-.hue-label input { accent-color: var(--color-hue, #D97706); }
