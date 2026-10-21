@@ -1,18 +1,21 @@
 document.addEventListener("DOMContentLoaded", async () => {
+    
     await loadWeatherData();
+
+    // Temperature Chart
 
     const margin = { top: 40, right: 40, bottom: 50, left: 60 },
           width = 850 - margin.left - margin.right,
           height = 420 - margin.top - margin.bottom;
 
-    const svg = d3.select("#temperature-chart")
+    const svgTemp = d3.select("#temperature-chart")
                   .append("svg")
                   .attr("width", width + margin.left + margin.right)
                   .attr("height", height + margin.top + margin.bottom)
                   .append("g")
                   .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const tooltip = d3.select("body").append("div")
+    const tooltipTemp = d3.select("body").append("div")
                       .attr("class", "tooltip")
                       .style("opacity", 0);
 
@@ -26,11 +29,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         rootStyles.getPropertyValue('--color-danang').trim() || "#D97706"
                     ]);
 
-    svg.append("g").attr("class", "y-grid");
-    const xAxisGroup = svg.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`);
-    const yAxisGroup = svg.append("g").attr("class", "axis y-axis");
+    svgTemp.append("g").attr("class", "y-grid");
+    const xAxisGroupTemp = svgTemp.append("g").attr("class", "axis x-axis").attr("transform", `translate(0,${height})`);
+    const yAxisGroupTemp = svgTemp.append("g").attr("class", "axis y-axis");
 
-    svg.append("text")
+    svgTemp.append("text")
        .attr("transform", "rotate(-90)")
        .attr("y", -45)
        .attr("x", -height / 2)
@@ -45,7 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let selectedMonth = null;
     let selectedCities = ["Ho Chi Minh City", "Hanoi", "Da Nang"];
 
-    function updateChart() {
+    function updateTempChart() {
         let data = [];
         let tickFormat = d3.timeFormat("%Y");
 
@@ -89,7 +92,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .domain([Math.floor(yMin - 2), Math.ceil(yMax + 2)])
                     .range([height, 0]);
 
-        svg.select(".y-grid")
+        svgTemp.select(".y-grid")
            .selectAll("line")
            .data(y.ticks(6))
            .join("line")
@@ -100,8 +103,8 @@ document.addEventListener("DOMContentLoaded", async () => {
            .attr("stroke", "#e2e8f0")
            .attr("stroke-dasharray", "4,4");
 
-        xAxisGroup.call(d3.axisBottom(x).ticks(6).tickFormat(tickFormat));
-        yAxisGroup.call(d3.axisLeft(y));
+        xAxisGroupTemp.call(d3.axisBottom(x).ticks(6).tickFormat(tickFormat));
+        yAxisGroupTemp.call(d3.axisLeft(y));
 
         const nestedData = d3.group(data, d => d.city);
         const isDense = currentLevel === "day";
@@ -111,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                        .y(d => y(d.temp))
                        .curve(isDense ? d3.curveLinear : d3.curveMonotoneX);
 
-        const cityGroups = svg.selectAll(".city-group")
+        const cityGroups = svgTemp.selectAll(".city-group")
                               .data(nestedData, d => d[0]);
 
         cityGroups.exit().remove();
@@ -155,22 +158,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (currentLevel === "year") {
                     selectedYear = d.date.getFullYear();
                     currentLevel = "month";
-                    updateChart();
+                    updateTempChart();
                 } else if (currentLevel === "month") {
                     selectedYear = d.date.getFullYear();
                     selectedMonth = d.date.getMonth() + 1;
                     currentLevel = "day";
-                    updateChart();
+                    updateTempChart();
                 }
             })
             .on("mouseover", (event, d) => {
-                tooltip.transition().duration(200).style("opacity", .9);
-                tooltip.html(`<strong>${d.city}</strong><br/>Date: ${d3.timeFormat("%Y-%m-%d")(d.date)}<br/>Temp: ${d.temp}°C`)
+                tooltipTemp.transition().duration(200).style("opacity", .9);
+                tooltipTemp.html(`<strong>${d.city}</strong><br/>Date: ${d3.timeFormat("%Y-%m-%d")(d.date)}<br/>Temp: ${d.temp}°C`)
                        .style("left", (event.pageX + 10) + "px")
                        .style("top", (event.pageY - 28) + "px");
             })
             .on("mouseout", () => {
-                tooltip.transition().duration(500).style("opacity", 0);
+                tooltipTemp.transition().duration(500).style("opacity", 0);
             });
     }
 
@@ -183,7 +186,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             currentLevel = "year";
             selectedYear = null;
         }
-        updateChart();
+        updateTempChart();
     });
 
     // Checkbox Change Event Listeners for City Filtering
@@ -191,9 +194,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         checkbox.addEventListener("change", () => {
             selectedCities = Array.from(document.querySelectorAll("#cityFilters input[type='checkbox']:checked"))
                                   .map(cb => cb.value);
-            updateChart();
+            updateTempChart();
         });
     });
 
-    updateChart();
+    updateTempChart();
 });
