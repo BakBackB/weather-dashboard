@@ -1,7 +1,13 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    
     await loadWeatherData();
+    document.dispatchEvent(new Event("weatherDataLoaded"));
+});
 
+// Start each chart independently after loading data.
+document.addEventListener("weatherDataLoaded", drawTemperatureChart);
+document.addEventListener("weatherDataLoaded", drawExtremeCharts);
+
+function drawTemperatureChart() {
     // Temperature Chart
 
     const margin = { top: 40, right: 40, bottom: 50, left: 60 },
@@ -199,4 +205,117 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     updateTempChart();
-});
+}
+
+// Annual extreme weather charts.
+function drawExtremeCharts() {
+    const data = getAnnualExtremeData();
+    if (data.length === 0) return;
+
+    const margin = { top: 40, right: 40, bottom: 50, left: 60 };
+    const width = 850 - margin.left - margin.right;
+    const height = 420 - margin.top - margin.bottom;
+    const cities = ["Hanoi", "Da Nang", "Ho Chi Minh City"];
+    const rootStyles = getComputedStyle(document.documentElement);
+    const color = d3.scaleOrdinal()
+        .domain(cities)
+        .range([
+            rootStyles.getPropertyValue("--color-hanoi").trim(),
+            rootStyles.getPropertyValue("--color-danang").trim(),
+            rootStyles.getPropertyValue("--color-hcm").trim()
+        ]);
+
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip extreme-tooltip")
+        .style("opacity", 0);
+
+    function drawChart(container, field, eventLabel, filters) {
+        const svg = d3.select(container).append("svg")
+            .attr("width", 850)
+            .attr("height", 420)
+            .attr("viewBox", "0 0 850 420")
+            .attr("role", "img")
+            .attr("aria-label", eventLabel + " per year across three cities")
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleLinear()
+            .domain(d3.extent(data, d => d.year))
+            .range([0, width]);
+        const y = d3.scaleLinear()
+            .domain([0, d3.max(data, d => d[field]) || 1])
+            .nice()
+            .range([height, 0]);
+        const ticks = y.ticks(Math.min(6, y.domain()[1]));
+
+        svg.append("g").selectAll("line")
+            .data(ticks).join("line")
+            .attr("x1", 0).attr("x2", width)
+            .attr("y1", d => y(d)).attr("y2", d => y(d))
+            .attr("stroke", "#e2e8f0")
+            .attr("stroke-dasharray", "4,4");
+
+        svg.append("g").attr("class", "axis")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(data.length / cities.length).tickFormat(d3.format("d")));
+        svg.append("g").attr("class", "axis")
+            .call(d3.axisLeft(y).tickValues(ticks).tickFormat(d3.format("d")));
+
+        svg.append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("x", -height / 2).attr("y", -45)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#64748b").attr("font-size", "12px")
+            .text("Number of Days");
+        svg.append("text")
+            .attr("x", width / 2).attr("y", height + 40)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#64748b").attr("font-size", "12px")
+            .text("Year");
+
+        const line = d3.line()
+            .x(d => x(d.year))
+            .y(d => y(d[field]));
+
+        cities.forEach(city => {
+            const cityData = data.filter(d => d.city === city);
+            const group = svg.append("g")
+                .attr("class", "extreme-city")
+                .attr("data-city", city);
+
+            group.append("path")
+                .datum(cityData)
+                .attr("class", "line")
+                .attr("stroke", color(city))
+                .attr("d", line);
+
+            group.selectAll("circle")
+                .data(cityData).join("circle")
+                .attr("class", "dot")
+                .attr("r", 4)
+                .attr("cx", d => x(d.year))
+                .attr("cy", d => y(d[field]))
+                .attr("fill", color(city))
+                .on("mouseover", (event, d) => {
+                    tooltip.style("opacity", 0.9)
+                        .html(`<strong>${d.city}</strong><br/>Year: ${d.year}<br/>${eventLabel}: ${d[field]}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0));
+        });
+
+        // Filter this chart by city.
+        document.querySelectorAll(filters + " input").forEach(checkbox => {
+            checkbox.addEventListener("change", () => {
+                svg.selectAll(".extreme-city")
+                    .filter(function() { return this.dataset.city === checkbox.value; })
+                    .style("display", checkbox.checked ? null : "none");
+                tooltip.style("opacity", 0);
+            });
+        });
+    }
+
+    drawChart("#hot-days-chart", "hotDays", "Hot days", "#extremeCityFilters");
+    drawChart("#heavy-rain-days-chart", "heavyRainDays", "Heavy rainfall days", "#heavyRainCityFilters");
+}

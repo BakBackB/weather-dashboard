@@ -14,35 +14,86 @@
 </head>
 <body>
 
-    <!-- Temperature Section -->
     <div class="container">
-        <h2>Temperature Trends Across Cities</h2>
-        
-        <!-- Drill-Down & City Filter Controls -->
-        <div class="controls">
-            <div class="controls-left">
-                <button id="backButton" class="back-btn">← Back to Overview</button>
-                <span id="currentViewLabel" class="view-label">View: 10-Year Overview (By Year)</span>
+        <!-- Dashboard tabs -->
+        <nav class="tabs" aria-label="Weather sections">
+            <button class="tab-button active" data-tab="temperature" aria-controls="temperature" aria-pressed="true">Temperature Dynamics &amp; Variations</button>
+            <button class="tab-button" data-tab="rainfall" aria-controls="rainfall" aria-pressed="false">Rainy Season Timing &amp; Intensity</button>
+            <button class="tab-button" data-tab="extremes" aria-controls="extremes" aria-pressed="false">Extreme Weather &amp; Climate Trends</button>
+        </nav>
+
+        <section id="temperature" class="tab-panel">
+            <h2>Temperature Trends Across Cities</h2>
+
+            <!-- Drill-Down & City Filter Controls -->
+            <div class="controls">
+                <div class="controls-left">
+                    <button id="backButton" class="back-btn">← Back to Overview</button>
+                    <span id="currentViewLabel" class="view-label">View: 10-Year Overview (By Year)</span>
+                </div>
+
+                <!-- City Selection Checkboxes -->
+                <div id="cityFilters" class="city-filters">
+                    <label class="filter-label hanoi-label">
+                        <input type="checkbox" value="Hanoi" checked> Hanoi
+                    </label>
+                    <label class="filter-label danang-label">
+                        <input type="checkbox" value="Da Nang" checked> Da Nang
+                    </label>
+                    <label class="filter-label hcm-label">
+                        <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
+                    </label>
+                </div>
             </div>
 
-            <!-- City Selection Checkboxes -->
-            <div id="cityFilters" class="city-filters">
-                <label class="filter-label hanoi-label">
-                    <input type="checkbox" value="Hanoi" checked> Hanoi
-                </label>
-                <label class="filter-label danang-label">
-                    <input type="checkbox" value="Da Nang" checked> Da Nang
-                </label>
-                <label class="filter-label hcm-label">
-                    <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
-                </label>
-            </div>
-        </div>
+            <div id="temperature-chart"></div>
+        </section>
 
-        <div id="temperature-chart"></div>
+        <section id="rainfall" class="tab-panel" hidden>
+            <h2>Rainfall Across Cities</h2>
+            <div id="rainfall-chart"></div>
+            <p>Rainfall charts will be added here.</p>
+        </section>
+
+        <section id="extremes" class="tab-panel" hidden>
+            <h2>Annual Extreme Trend Lines</h2>
+            <h3 class="extreme-chart-title">Annual Hot Days (&gt;35°C)</h3>
+            <div class="controls">
+                <span class="view-label">Annual Counts by City</span>
+                <div id="extremeCityFilters" class="city-filters">
+                    <label class="filter-label hanoi-label">
+                        <input type="checkbox" value="Hanoi" checked> Hanoi
+                    </label>
+                    <label class="filter-label danang-label">
+                        <input type="checkbox" value="Da Nang" checked> Da Nang
+                    </label>
+                    <label class="filter-label hcm-label">
+                        <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
+                    </label>
+                </div>
+            </div>
+            <div id="hot-days-chart" class="extreme-chart"></div>
+            <h3 class="extreme-chart-title">Annual Heavy Rainfall Days (&gt;50 mm)</h3>
+            <div class="controls">
+                <span class="view-label">Annual Counts by City</span>
+                <div id="heavyRainCityFilters" class="city-filters">
+                    <label class="filter-label hanoi-label">
+                        <input type="checkbox" value="Hanoi" checked> Hanoi
+                    </label>
+                    <label class="filter-label danang-label">
+                        <input type="checkbox" value="Da Nang" checked> Da Nang
+                    </label>
+                    <label class="filter-label hcm-label">
+                        <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
+                    </label>
+                </div>
+            </div>
+            <div id="heavy-rain-days-chart" class="extreme-chart"></div>
+        </section>
     </div>
 
     <!-- Modular JavaScript Files -->
+    <script src="js/tabs.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/dataLoader.js"></script>
