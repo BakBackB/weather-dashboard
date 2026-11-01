@@ -8,12 +8,21 @@ document.addEventListener("weatherDataLoaded", drawTemperatureChart);
 document.addEventListener("weatherDataLoaded", drawExtremeCharts);
 document.addEventListener("weatherDataLoaded", drawRainfallChart);
 
+// Rainfall State values
 const rainfallState = {
     level: "year",
     city: null,
     year: null,
     month: null
 };
+
+// Rainfall colors for each city  
+const rainfallCityColors = { 
+    "Hanoi": "#0284C7",
+    "Da Nang": "#D97706",
+    "Ho Chi Minh City": "#D93856"
+};
+
 function drawTemperatureChart() {
     // Temperature Chart
 
@@ -466,9 +475,13 @@ function drawCalendarHeatmap() {
 
     const maxRainfall = d3.max(rows, d => d.precipitation) || 1;
 
-    const color = d3.scaleSequential(d3.interpolateBlues)
-        .domain([0, maxRainfall]);
+    // Full color syncing with the cities chosen colors
+    const cityColor = rainfallCityColors[rainfallState.city] || "#0284C7";
 
+    const color = d3.scaleSequential()
+        .domain([0, maxRainfall])
+        .interpolator(d3.interpolateRgb("#f8fafc", cityColor));  
+        
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     chart.selectAll(".day-name")
