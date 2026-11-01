@@ -51,8 +51,18 @@
 
         <section id="rainfall" class="tab-panel" hidden>
             <h2>Rainfall Across Cities</h2>
+            <div class="controls">
+                <div class="controls-left">
+                    <button id="rainfallBackButton" class="back-btn">← Back</button>
+                    <span id="rainfallViewLabel" class="view-label"></span>
+                </div>              
+            </div>
             <div id="rainfall-chart"></div>
-            <p>Rainfall charts will be added here.</p>
+
+            <h3>Daily Rainfall Calendar</h3>
+            <div id="rainfall-heatmap"></div>
+
+            <aside id="rainfall-detail" hidden></aside>
         </section>
 
         <section id="extremes" class="tab-panel" hidden>
