@@ -416,6 +416,109 @@ function drawRainfallChart() {
             .append("title")
             .text(d => `${d3.timeFormat("%Y-%m-%d")(d.date)}: ${d.rainfall} mm`);
     }
+    drawCalendarHeatmap();
+}
+
+// Draw a calendar heatmap for daily rainfall in a selected city and year.
+function drawCalendarHeatmap() {
+    const container = d3.select("#rainfall-heatmap");
+    container.selectAll("*").remove();
+
+    const detail = document.getElementById("rainfall-detail");
+    if (detail) detail.hidden = true;
+
+    // A city and year are selected after the user clicks an annual bar.
+    if (!rainfallState.city || !rainfallState.year) {
+        container.append("p")
+            .text("Click an annual rainfall bar to view its daily calendar.");
+        return;
+    }
+
+    const rows = rawParsedWeather
+        .filter(d =>
+            d.city === rainfallState.city &&
+            d.date.getFullYear() === rainfallState.year
+        )
+        .sort((a, b) => a.date - b.date);
+
+    if (rows.length === 0) {
+        container.append("p").text("No daily rainfall data available.");
+        return;
+    }
+
+    const cellSize = 14;
+    const gap = 3;
+    const yearStart = new Date(rainfallState.year, 0, 1);
+    const yearEnd = new Date(rainfallState.year + 1, 0, 1);
+    const weekCount = d3.timeWeek.count(yearStart, yearEnd);
+    const width = 65 + (weekCount + 1) * (cellSize + gap);
+    const height = 55 + 7 * (cellSize + gap);
+
+    const svg = container.append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("role", "img")
+        .attr("aria-label", `Daily rainfall calendar for ${rainfallState.city} in ${rainfallState.year}`);
+
+    const chart = svg.append("g")
+        .attr("transform", "translate(50,35)");
+
+    const maxRainfall = d3.max(rows, d => d.precipitation) || 1;
+
+    const color = d3.scaleSequential(d3.interpolateBlues)
+        .domain([0, maxRainfall]);
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    chart.selectAll(".day-name")
+        .data(dayNames)
+        .join("text")
+        .attr("class", "day-name")
+        .attr("x", -8)
+        .attr("y", (_, index) => index * (cellSize + gap) + cellSize - 2)
+        .attr("text-anchor", "end")
+        .attr("font-size", "10px")
+        .attr("fill", "#64748b")
+        .text(d => d);
+
+    chart.selectAll(".rainfall-day")
+        .data(rows, d => d.dayStr)
+        .join("rect")
+        .attr("class", "rainfall-day")
+        .attr("x", d =>
+            d3.timeWeek.count(d3.timeYear(d.date), d.date) * (cellSize + gap)
+        )
+        .attr("y", d => d.date.getDay() * (cellSize + gap))
+        .attr("width", cellSize)
+        .attr("height", cellSize)
+        .attr("rx", 2)
+        .attr("fill", d => color(d.precipitation))
+        .style("cursor", "pointer")
+        .on("click", (event, d) => showRainfallDetail(d))
+        .append("title")
+        .text(d => `${d.dayStr}: ${d.precipitation} mm`);
+}
+// Show detailed rainfall information for a specific day.
+function showRainfallDetail(day) {
+    const panel = document.getElementById("rainfall-detail");
+
+    if (!panel) return;
+
+    const date = d3.timeFormat("%A, %d %B %Y")(day.date);
+    const rainHours = Number.isFinite(day.precipitationHours)
+        ? `${day.precipitationHours} hours`
+        : "Not available";
+
+    panel.hidden = false;
+    panel.innerHTML = `
+        <h4>${day.city}</h4>
+        <p><strong>${date}</strong></p>
+        <p>Rainfall: <strong>${day.precipitation.toFixed(1)} mm</strong></p>
+        <p>Rain duration: ${rainHours}</p>
+        <p>Mean temperature: ${day.tempMean.toFixed(1)} °C</p>
+        <p>Maximum temperature: ${day.tempMax.toFixed(1)} °C</p>
+    `;
 }
 
 // Annual extreme weather charts.
