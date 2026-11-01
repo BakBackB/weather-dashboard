@@ -6,7 +6,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Start each chart independently after loading data.
 document.addEventListener("weatherDataLoaded", drawTemperatureChart);
 document.addEventListener("weatherDataLoaded", drawExtremeCharts);
+document.addEventListener("weatherDataLoaded", drawRainfallChart);
 
+const rainfallState = {
+    level: "year",
+    city: null,
+    year: null,
+    month: null
+};
 function drawTemperatureChart() {
     // Temperature Chart
 
@@ -205,6 +212,210 @@ function drawTemperatureChart() {
     });
 
     updateTempChart();
+}
+// Calculate rainfall by period (year, month, day) and city.
+function rainfallByPeriod(level, filterFn = () => true) {
+    const bucket = {
+        year: d => d.year,
+        month: d => d.yearMonth,
+        day: d => d.dayStr
+    }[level];
+
+    const parse = {
+        year: key => new Date(+key, 0, 1),
+        month: key => d3.timeParse("%Y-%m")(key),
+        day: key => d3.timeParse("%Y-%m-%d")(key)}[level];
+
+    return d3.rollups(
+        rawParsedWeather.filter(filterFn),
+        rows => d3.sum(rows, d => d.precipitation), d => d.city,
+    bucket)
+    
+    .flatMap(([city, periods]) => periods.map(([key, rainfall]) => ({
+        city,
+        date: parse(key),
+        rainfall: +rainfall.toFixed(1)
+    }))
+    );
+}
+
+// Draw rainfall chart based on the current state (year, month, day).
+function drawRainfallChart() {
+    const container = d3.select("#rainfall-chart");
+    container.selectAll("*").remove();
+
+    let data = [];
+
+    if (rainfallState.level === "year") {
+        data = rainfallByPeriod("year");
+    } else if (rainfallState.level === "month") {
+        data = rainfallByPeriod(
+            "month",
+            d => d.city === rainfallState.city &&
+                 d.date.getFullYear() === rainfallState.year
+        );
+    } else {
+        data = rainfallByPeriod(
+            "day",
+            d => d.city === rainfallState.city &&
+                 d.date.getFullYear() === rainfallState.year &&
+                 d.date.getMonth() + 1 === rainfallState.month
+        );
+    }
+
+    if (data.length === 0) {
+        container.append("p").text("No rainfall data available.");
+        return;
+    }
+
+    data.sort((a, b) => a.date - b.date);
+
+    const label = document.getElementById("rainfallViewLabel");
+    const backButton = document.getElementById("rainfallBackButton");
+
+    if (rainfallState.level === "year") {
+        label.textContent = "Annual rainfall by city";
+        backButton.style.display = "none";
+    } else if (rainfallState.level === "month") {
+        label.textContent = `${rainfallState.city}: monthly rainfall in ${rainfallState.year}`;
+        backButton.style.display = "inline-block";
+    } else {
+        const monthName = d3.timeFormat("%B")(data[0].date);
+        label.textContent = `${rainfallState.city}: daily rainfall in ${monthName} ${rainfallState.year}`;
+        backButton.style.display = "inline-block";
+    }
+
+    backButton.onclick = () => {
+        if (rainfallState.level === "day") {
+            rainfallState.level = "month";
+            rainfallState.month = null;
+        } else if (rainfallState.level === "month") {
+            rainfallState.level = "year";
+            rainfallState.city = null;
+            rainfallState.year = null;
+        }
+
+        drawRainfallChart();
+    };
+
+    const margin = { top: 35, right: 30, bottom: 60, left: 65 };
+    const width = 850 - margin.left - margin.right;
+    const height = 420 - margin.top - margin.bottom;
+
+    const svg = container.append("svg")
+        .attr("width", 850)
+        .attr("height", 420)
+        .attr("viewBox", "0 0 850 420")
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.rainfall) || 1])
+        .nice()
+        .range([height, 0]);
+
+    svg.append("g")
+        .selectAll("line")
+        .data(y.ticks(6))
+        .join("line")
+        .attr("x1", 0)
+        .attr("x2", width)
+        .attr("y1", d => y(d))
+        .attr("y2", d => y(d))
+        .attr("stroke", "#e2e8f0")
+        .attr("stroke-dasharray", "4,4");
+
+    svg.append("g")
+        .call(d3.axisLeft(y));
+
+    svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", -48)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#64748b")
+        .text("Rainfall (mm)");
+
+    const colors = d3.scaleOrdinal()
+        .domain(["Hanoi", "Da Nang", "Ho Chi Minh City"])
+        .range(["#0284C7", "#D97706", "#D93856"]);
+
+    if (rainfallState.level === "year") {
+        const years = [...new Set(data.map(d => d.date.getFullYear()))];
+
+        const xYear = d3.scaleBand()
+            .domain(years)
+            .range([0, width])
+            .padding(0.2);
+
+        const xCity = d3.scaleBand()
+            .domain(colors.domain())
+            .range([0, xYear.bandwidth()])
+            .padding(0.08);
+
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(xYear));
+
+        svg.selectAll(".rainfall-bar")
+            .data(data)
+            .join("rect")
+            .attr("class", "rainfall-bar")
+            .attr("x", d => xYear(d.date.getFullYear()) + xCity(d.city))
+            .attr("y", d => y(d.rainfall))
+            .attr("width", xCity.bandwidth())
+            .attr("height", d => height - y(d.rainfall))
+            .attr("fill", d => colors(d.city))
+            .style("cursor", "pointer")
+            .on("click", (event, d) => {
+                rainfallState.city = d.city;
+                rainfallState.year = d.date.getFullYear();
+                rainfallState.level = "month";
+                drawRainfallChart();
+            })
+            .append("title")
+            .text(d => `${d.city}, ${d.date.getFullYear()}: ${d.rainfall} mm`);
+    } else {
+        const formatDate = rainfallState.level === "month"
+            ? d3.timeFormat("%b")
+            : d3.timeFormat("%d");
+
+        const x = d3.scaleBand()
+            .domain(data.map(d => formatDate(d.date)))
+            .range([0, width])
+            .padding(0.2);
+
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(
+                d3.axisBottom(x)
+                    .tickValues(
+                        rainfallState.level === "day"
+                            ? x.domain().filter((d, i) => i % 4 === 0)
+                            : x.domain()
+                    )
+            );
+
+        svg.selectAll(".rainfall-bar")
+            .data(data)
+            .join("rect")
+            .attr("class", "rainfall-bar")
+            .attr("x", d => x(formatDate(d.date)))
+            .attr("y", d => y(d.rainfall))
+            .attr("width", x.bandwidth())
+            .attr("height", d => height - y(d.rainfall))
+            .attr("fill", colors(rainfallState.city))
+            .style("cursor", rainfallState.level === "month" ? "pointer" : "default")
+            .on("click", (event, d) => {
+                if (rainfallState.level === "month") {
+                    rainfallState.month = d.date.getMonth() + 1;
+                    rainfallState.level = "day";
+                    drawRainfallChart();
+                }
+            })
+            .append("title")
+            .text(d => `${d3.timeFormat("%Y-%m-%d")(d.date)}: ${d.rainfall} mm`);
+    }
 }
 
 // Annual extreme weather charts.
