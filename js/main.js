@@ -5,6 +5,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Start each chart independently after loading data.
 document.addEventListener("weatherDataLoaded", drawTemperatureChart);
+document.addEventListener("weatherDataLoaded", drawTemperatureInsights);
+document.addEventListener("weatherDataLoaded", drawTemperatureDetailCharts);
 document.addEventListener("weatherDataLoaded", drawExtremeCharts);
 document.addEventListener("weatherDataLoaded", drawRainfallChart);
 
@@ -74,30 +76,20 @@ function drawTemperatureChart() {
         let data = [];
         let tickFormat = d3.timeFormat("%Y");
 
-        const backBtn = document.getElementById("backButton");
-        const label = document.getElementById("currentViewLabel");
-
         if (currentLevel === "year") {
             data = getFilteredAggregatedData("year");
             tickFormat = d3.timeFormat("%Y");
-            label.innerText = "10-Year Overview (By Year)";
-            backBtn.style.display = "none";
         } else if (currentLevel === "month") {
             data = getFilteredAggregatedData("month", d => d.date.getFullYear() === selectedYear);
             tickFormat = d3.timeFormat("%b %Y");
-            label.innerText = `Year ${selectedYear} (Monthly Details)`;
-            backBtn.innerText = "← Back to Overview";
-            backBtn.style.display = "inline-block";
         } else if (currentLevel === "day") {
             data = getFilteredAggregatedData("day", d => {
                 return d.date.getFullYear() === selectedYear && (d.date.getMonth() + 1) === selectedMonth;
             });
             tickFormat = d3.timeFormat("%b %d");
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            label.innerText = `${monthNames[selectedMonth - 1]} ${selectedYear} (Daily Details)`;
-            backBtn.innerText = `← Back to Year`;
-            backBtn.style.display = "inline-block";
         }
+
+        renderBreadcrumb();
 
         if (data.length === 0) return;
 
@@ -199,15 +191,41 @@ function drawTemperatureChart() {
             });
     }
 
-    // Back Button Event Listener
-    document.getElementById("backButton").addEventListener("click", () => {
-        if (currentLevel === "day") {
-            currentLevel = "month";
-            selectedMonth = null;
-        } else if (currentLevel === "month") {
-            currentLevel = "year";
-            selectedYear = null;
-        }
+    // Breadcrumb: shows the drill-down path; earlier steps are clickable to go back up.
+    function renderBreadcrumb() {
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const crumbs = [{ level: "year", label: "All Years" }];
+        if (currentLevel !== "year") crumbs.push({ level: "month", label: selectedYear });
+        if (currentLevel === "day") crumbs.push({ level: "day", label: monthNames[selectedMonth - 1] });
+
+        d3.select("#temperatureBreadcrumb")
+            .selectAll("button")
+            .data(crumbs)
+            .join("button")
+            .attr("class", "temperature-crumb")
+            .attr("aria-current", (d, i) => i === crumbs.length - 1 ? "page" : null)
+            .attr("disabled", (d, i) => i === crumbs.length - 1 ? true : null)
+            .text(d => d.label)
+            .on("click", (event, d) => {
+                currentLevel = d.level;
+                if (d.level === "year") selectedYear = null;
+                if (d.level !== "day") selectedMonth = null;
+                updateTempChart();
+            });
+
+        const hints = {
+            year: "Annual mean · click a point to see its months",
+            month: "Monthly mean · click a point to see its days",
+            day: "Daily mean temperature"
+        };
+        document.getElementById("temperatureHint").textContent = hints[currentLevel];
+    }
+
+    // Open a month selected in another chart (the anomaly heatmap) at the daily level.
+    document.addEventListener("temperatureMonthSelected", event => {
+        selectedYear = event.detail.year;
+        selectedMonth = event.detail.month;
+        currentLevel = "day";
         updateTempChart();
     });
 

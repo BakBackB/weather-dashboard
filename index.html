@@ -25,14 +25,9 @@
         <section id="temperature" class="tab-panel">
             <h2>Temperature Trends Across Cities</h2>
 
-            <!-- Drill-Down & City Filter Controls -->
-            <div class="controls">
-                <div class="controls-left">
-                    <button id="backButton" class="back-btn">← Back to Overview</button>
-                    <span id="currentViewLabel" class="view-label">View: 10-Year Overview (By Year)</span>
-                </div>
-
-                <!-- City Selection Checkboxes -->
+            <!-- City filter for all temperature charts -->
+            <div class="controls temperature-filter-bar">
+                <span class="view-label">Cities:</span>
                 <div id="cityFilters" class="city-filters">
                     <label class="filter-label hanoi-label">
                         <input type="checkbox" value="Hanoi" checked> Hanoi
@@ -46,7 +41,45 @@
                 </div>
             </div>
 
+            <h3 class="temperature-section-title">Key Insights</h3>
+            <h4 class="temperature-chart-title">A Typical Year</h4>
+            <p class="temperature-chart-note">Bar: average daily minimum to maximum · Tick: monthly mean (10-year average). Hover a bar for humidity and sunshine.</p>
+            <div id="temperature-fingerprint-chart" class="temperature-chart"></div>
+
+            <h4 class="temperature-chart-title">2015–2025: El Niño, La Niña and Sudden Drops</h4>
+            <p class="temperature-chart-note">Lines: monthly temperature anomaly (3-month average) · Shading: El Niño and La Niña periods (NOAA Oceanic Niño Index) · Ticks: days on which the mean fell by 4°C or more. Drag in the bottom strip to zoom.</p>
+            <div id="temperature-timeline-chart" class="temperature-chart"></div>
+
+            <h3 id="temperatureDetails" class="temperature-section-title">Explore the Details</h3>
+
+            <h4 class="temperature-chart-title">Annual, Monthly and Daily Mean Temperature</h4>
+            <div class="controls">
+                <div class="temperature-nav">
+                    <nav id="temperatureBreadcrumb" class="temperature-breadcrumb" aria-label="Drill-down level"></nav>
+                    <span id="temperatureHint" class="temperature-hint"></span>
+                </div>
+            </div>
             <div id="temperature-chart"></div>
+
+            <h4 class="temperature-chart-title">Unusually Warm or Cold Months</h4>
+            <p class="temperature-chart-note">Each cell: the month's mean temperature compared with the 10-year average of that month. Click a cell to open its daily temperatures in the chart above.</p>
+            <div id="temperature-anomaly-chart" class="temperature-chart"></div>
+
+            <h4 class="temperature-chart-title">Daily Temperature Range by Month</h4>
+            <p class="temperature-chart-note">Box: middle 50% of days · Line: median · Whiskers: 1.5 × IQR · Circles: outliers.</p>
+            <div id="temperature-range-chart" class="temperature-chart"></div>
+
+            <h4 class="temperature-chart-title">Why Does the Daily Range Differ?</h4>
+            <div class="controls">
+                <div class="controls-left">
+                    <label class="view-label" for="driverSelect">Compare daily range with:</label>
+                    <select id="driverSelect" class="temperature-select">
+                        <option value="humidity">Relative humidity</option>
+                        <option value="sunshine">Sunshine duration</option>
+                    </select>
+                </div>
+            </div>
+            <div id="temperature-drivers-chart" class="temperature-chart"></div>
         </section>
 
         <section id="rainfall" class="tab-panel" hidden>
@@ -107,6 +140,8 @@
     <script src="js/utils.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/dataLoader.js"></script>
+    <script src="js/temperature.js"></script>
+    <script src="js/temperatureInsights.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

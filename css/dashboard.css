@@ -159,3 +159,92 @@
 .extreme-chart .dot {
     cursor: default;
 }
+
+.temperature-chart-title {
+    text-align: center;
+    color: #2c3e50;
+    font-size: 16px;
+    margin: 35px 0 4px;
+}
+
+.temperature-chart-note {
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    margin: 0 0 10px;
+}
+
+.temperature-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.temperature-select {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    font: inherit;
+    font-size: 13px;
+}
+
+.temperature-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.temperature-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.temperature-crumb {
+    padding: 2px 4px;
+    border: none;
+    background: none;
+    color: #0284C7;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.temperature-crumb:hover {
+    background: #f1f5f9;
+}
+
+/* The last crumb is the current view and is not a link. */
+.temperature-crumb[aria-current] {
+    color: #2c3e50;
+    cursor: default;
+    background: none;
+}
+
+.temperature-crumb + .temperature-crumb::before {
+    content: "›";
+    margin: 0 8px 0 4px;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.temperature-hint {
+    padding: 0 4px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.temperature-filter-bar {
+    justify-content: flex-start;
+}
+
+.temperature-section-title {
+    margin: 40px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e2e8f0;
+    color: #2c3e50;
+    font-size: 19px;
+}

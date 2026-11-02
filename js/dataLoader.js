@@ -27,6 +27,9 @@ async function loadWeatherData() {
                 dayStr: parsedDate ? d3.timeFormat("%Y-%m-%d")(parsedDate) : null,
                 tempMean: Number(d.temperature_2m_mean),
                 tempMax: Number(d.temperature_2m_max),
+                tempMin: Number(d.temperature_2m_min),
+                humidity: Number(d.relative_humidity_2m_mean),
+                sunshineHours: Number(d.sunshine_duration) / 3600,
                 precipitation: Number(d.precipitation_sum),
                 precipitationHours: Number(d.precipitation_hours),
             };
