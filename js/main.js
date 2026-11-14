@@ -8,12 +8,120 @@ document.addEventListener("weatherDataLoaded", drawTemperatureChart);
 document.addEventListener("weatherDataLoaded", drawExtremeCharts);
 document.addEventListener("weatherDataLoaded", drawRainfallChart);
 
+// Rainfall State values
 const rainfallState = {
     level: "year",
     city: null,
     year: null,
     month: null
 };
+
+// Rainfall colors for each city  
+const rainfallCityColors = { 
+    "Hanoi": "#0284C7",
+    "Da Nang": "#D97706",
+    "Ho Chi Minh City": "#D93856"
+};
+const rainfallCities = Object.keys(rainfallCityColors);
+const rainfallSelectedCities = new Set(rainfallCities);
+let rainfallTooltip = null;
+let rainfallCityFiltersInitialized = false;
+const rainfallReducedMotion = window.matchMedia
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    : false;
+const rainfallAnimationDuration = duration => rainfallReducedMotion ? 0 : duration;
+const rainfallAnimationDelay = delay => rainfallReducedMotion ? 0 : delay;
+
+function setupRainfallCityFilters() {
+    const filters = document.getElementById("rainfallCityFilters");
+    if (!filters || rainfallCityFiltersInitialized) return;
+
+    filters.querySelectorAll("input[type='checkbox']").forEach(checkbox => {
+        checkbox.addEventListener("change", () => {
+            rainfallSelectedCities.clear();
+            filters.querySelectorAll("input[type='checkbox']:checked")
+                .forEach(input => rainfallSelectedCities.add(input.value));
+            drawRainfallChart();
+        });
+    });
+
+    rainfallCityFiltersInitialized = true;
+}
+
+function getRainfallTooltip() {
+    if (!rainfallTooltip) {
+        rainfallTooltip = d3.select("body").append("div")
+            .attr("id", "rainfall-tooltip")
+            .attr("class", "tooltip rainfall-tooltip")
+            .attr("role", "tooltip")
+            .attr("aria-hidden", "true")
+            .style("opacity", 0);
+    }
+    return rainfallTooltip;
+}
+
+function positionRainfallTooltip(event) {
+    const tooltip = getRainfallTooltip();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const pageX = event.type === "focus"
+        ? bounds.left + window.scrollX + bounds.width / 2
+        : event.pageX;
+    const pageY = event.type === "focus"
+        ? bounds.top + window.scrollY
+        : event.pageY;
+    const node = tooltip.node();
+    const edge = 8;
+    let left = pageX + 14;
+    let top = pageY - node.offsetHeight - 12;
+
+    if (left + node.offsetWidth > window.scrollX + window.innerWidth - edge) {
+        left = pageX - node.offsetWidth - 14;
+    }
+    if (top < window.scrollY + edge) {
+        top = pageY + 16;
+    }
+
+    tooltip.style("left", `${Math.max(window.scrollX + edge, left)}px`)
+        .style("top", `${Math.max(window.scrollY + edge, top)}px`);
+}
+
+function showRainfallTooltip(event, datum) {
+    const period = rainfallState.level === "year"
+        ? d3.timeFormat("%Y")(datum.date)
+        : rainfallState.level === "month"
+            ? d3.timeFormat("%B %Y")(datum.date)
+            : d3.timeFormat("%A, %d %B %Y")(datum.date);
+    const amount = datum.rainfall === 0 ? "0" : d3.format(",.1f")(datum.rainfall);
+    const tooltip = getRainfallTooltip();
+
+    tooltip.interrupt()
+        .html(`<strong>${datum.city}</strong><br><span class="tooltip-period">${period}</span><br>Rainfall: <strong>${amount} mm</strong>`)
+        .attr("aria-hidden", "false");
+    positionRainfallTooltip(event);
+    tooltip.transition().duration(rainfallAnimationDuration(140)).style("opacity", 0.96);
+}
+
+function hideRainfallTooltip() {
+    if (!rainfallTooltip) return;
+    rainfallTooltip.interrupt()
+        .attr("aria-hidden", "true")
+        .transition().duration(rainfallAnimationDuration(160))
+        .style("opacity", 0);
+}
+
+function bindRainfallBarInteractions(selection, canDrillDown, labelFor) {
+    selection
+        .attr("tabindex", 0)
+        .attr("role", canDrillDown ? "button" : "img")
+        .attr("aria-describedby", "rainfall-tooltip")
+        .attr("aria-label", labelFor)
+        .on("pointerenter", showRainfallTooltip)
+        .on("pointermove", event => positionRainfallTooltip(event))
+        .on("pointerleave", hideRainfallTooltip)
+        .on("focus", showRainfallTooltip)
+        .on("blur", hideRainfallTooltip);
+}
+
 function drawTemperatureChart() {
     // Temperature Chart
 
@@ -243,6 +351,14 @@ function rainfallByPeriod(level, filterFn = () => true) {
 function drawRainfallChart() {
     const container = d3.select("#rainfall-chart");
     container.selectAll("*").remove();
+    hideRainfallTooltip();
+    setupRainfallCityFilters();
+    getRainfallTooltip();
+
+    const cityFilters = document.getElementById("rainfallCityFilters");
+    if (cityFilters) {
+        cityFilters.style.display = rainfallState.level === "year" ? "flex" : "none";
+    }
 
     let data = [];
 
@@ -263,8 +379,16 @@ function drawRainfallChart() {
         );
     }
 
+    if (rainfallState.level === "year") {
+        data = data.filter(d => rainfallSelectedCities.has(d.city));
+    }
+
     if (data.length === 0) {
-        container.append("p").text("No rainfall data available.");
+        const message = rainfallState.level === "year" && rainfallSelectedCities.size === 0
+            ? "Select at least one city to display rainfall."
+            : "No rainfall data available.";
+        container.append("p").attr("class", "rainfall-empty").text(message);
+        drawCalendarHeatmap();
         return;
     }
 
@@ -302,31 +426,44 @@ function drawRainfallChart() {
     const width = 850 - margin.left - margin.right;
     const height = 420 - margin.top - margin.bottom;
 
-    const svg = container.append("svg")
+    const rootSvg = container.append("svg")
+        .attr("class", "rainfall-svg")
         .attr("width", 850)
         .attr("height", 420)
         .attr("viewBox", "0 0 850 420")
-        .append("g")
+        .attr("role", "group")
+        .attr("aria-label", "Rainfall by city and period")
+        .style("opacity", 0);
+    const svg = rootSvg.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    rootSvg.transition().duration(rainfallAnimationDuration(260)).style("opacity", 1);
 
     const y = d3.scaleLinear()
         .domain([0, d3.max(data, d => d.rainfall) || 1])
         .nice()
         .range([height, 0]);
 
-    svg.append("g")
+    const grid = svg.append("g")
         .selectAll("line")
         .data(y.ticks(6))
         .join("line")
         .attr("x1", 0)
         .attr("x2", width)
+        .attr("y1", height)
+        .attr("y2", height)
+        .attr("stroke", "#e2e8f0")
+        .attr("stroke-dasharray", "4,4")
+        .attr("opacity", 0);
+    grid.transition().duration(rainfallAnimationDuration(520)).ease(d3.easeCubicOut)
         .attr("y1", d => y(d))
         .attr("y2", d => y(d))
-        .attr("stroke", "#e2e8f0")
-        .attr("stroke-dasharray", "4,4");
+        .attr("opacity", 1);
 
-    svg.append("g")
-        .call(d3.axisLeft(y));
+    svg.append("g").attr("class", "axis rainfall-y-axis")
+        .style("opacity", 0)
+        .call(d3.axisLeft(y))
+        .transition().duration(rainfallAnimationDuration(420)).style("opacity", 1);
 
     svg.append("text")
         .attr("transform", "rotate(-90)")
@@ -337,11 +474,19 @@ function drawRainfallChart() {
         .text("Rainfall (mm)");
 
     const colors = d3.scaleOrdinal()
-        .domain(["Hanoi", "Da Nang", "Ho Chi Minh City"])
-        .range(["#0284C7", "#D97706", "#D93856"]);
+        .domain(rainfallCities)
+        .range(rainfallCities.map(city => rainfallCityColors[city]));
+
+    const ZERO_BAR_HEIGHT = 6;
+    const barHeight = d => d.rainfall === 0
+        ? ZERO_BAR_HEIGHT
+        : Math.max(0.75, height - y(d.rainfall));
+    const barY = d => height - barHeight(d);
+    const formatAmount = d => d.rainfall === 0 ? "0" : d3.format(",.1f")(d.rainfall);
 
     if (rainfallState.level === "year") {
         const years = [...new Set(data.map(d => d.date.getFullYear()))];
+        const visibleCities = rainfallCities.filter(city => rainfallSelectedCities.has(city));
 
         const xYear = d3.scaleBand()
             .domain(years)
@@ -349,32 +494,93 @@ function drawRainfallChart() {
             .padding(0.2);
 
         const xCity = d3.scaleBand()
-            .domain(colors.domain())
+            .domain(visibleCities)
             .range([0, xYear.bandwidth()])
             .padding(0.08);
 
         svg.append("g")
+            .attr("class", "axis rainfall-x-axis")
             .attr("transform", `translate(0,${height})`)
-            .call(d3.axisBottom(xYear));
+            .style("opacity", 0)
+            .call(d3.axisBottom(xYear))
+            .transition().duration(rainfallAnimationDuration(420)).style("opacity", 1);
 
         svg.selectAll(".rainfall-bar")
             .data(data)
             .join("rect")
-            .attr("class", "rainfall-bar")
+            .attr("class", d => d.rainfall === 0 ? "rainfall-bar is-zero" : "rainfall-bar")
             .attr("x", d => xYear(d.date.getFullYear()) + xCity(d.city))
-            .attr("y", d => y(d.rainfall))
+            .attr("y", height)
             .attr("width", xCity.bandwidth())
-            .attr("height", d => height - y(d.rainfall))
-            .attr("fill", d => colors(d.city))
+            .attr("height", 0)
+            .attr("fill", d => d.rainfall === 0 ? "#f8fafc" : colors(d.city))
+            .attr("stroke", d => d.rainfall === 0 ? colors(d.city) : "none")
+            .attr("stroke-width", d => d.rainfall === 0 ? 1.5 : 0)
+            .attr("stroke-dasharray", d => d.rainfall === 0 ? "2,1" : null)
+            .attr("opacity", 0)
             .style("cursor", "pointer")
+            .transition("rainfall-bars")
+            .delay((d, i) => rainfallAnimationDelay(Math.min(i * 16, 420)))
+            .duration(rainfallAnimationDuration(560))
+            .ease(d3.easeCubicOut)
+            .attr("y", barY)
+            .attr("height", barHeight)
+            .attr("opacity", 1);
+
+        const barSelection = svg.selectAll(".rainfall-bar");
+        bindRainfallBarInteractions(
+            barSelection,
+            true,
+            d => `${d.city}, ${d.date.getFullYear()}: ${formatAmount(d)} millimeters of rainfall. Activate to view monthly details.`
+        );
+        barSelection.on("click", (event, d) => {
+            rainfallState.city = d.city;
+            rainfallState.year = d.date.getFullYear();
+            rainfallState.level = "month";
+            drawRainfallChart();
+        }).on("keydown", (event, d) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                rainfallState.city = d.city;
+                rainfallState.year = d.date.getFullYear();
+                rainfallState.level = "month";
+                drawRainfallChart();
+            }
+        });
+
+        svg.selectAll(".rainfall-hit-area")
+            .data(data)
+            .join("rect")
+            .attr("class", "rainfall-hit-area")
+            .attr("x", d => xYear(d.date.getFullYear()) + xCity(d.city))
+            .attr("y", height - 14)
+            .attr("width", xCity.bandwidth())
+            .attr("height", 14)
+            .attr("aria-hidden", "true")
+            .on("pointerenter", showRainfallTooltip)
+            .on("pointermove", event => positionRainfallTooltip(event))
+            .on("pointerleave", hideRainfallTooltip)
             .on("click", (event, d) => {
                 rainfallState.city = d.city;
                 rainfallState.year = d.date.getFullYear();
                 rainfallState.level = "month";
                 drawRainfallChart();
-            })
-            .append("title")
-            .text(d => `${d.city}, ${d.date.getFullYear()}: ${d.rainfall} mm`);
+            });
+
+        const zeroData = data.filter(d => d.rainfall === 0);
+        svg.selectAll(".rainfall-zero-label")
+            .data(zeroData)
+            .join("text")
+            .attr("class", "rainfall-zero-label")
+            .attr("x", d => xYear(d.date.getFullYear()) + xCity(d.city) + xCity.bandwidth() / 2)
+            .attr("y", height - ZERO_BAR_HEIGHT - 3)
+            .attr("text-anchor", "middle")
+            .attr("fill", d => colors(d.city))
+            .attr("opacity", 0)
+            .text("0")
+            .transition().delay((d, i) => rainfallAnimationDelay(Math.min(i * 16, 420) + 360))
+            .duration(rainfallAnimationDuration(240))
+            .attr("opacity", 1);
     } else {
         const formatDate = rainfallState.level === "month"
             ? d3.timeFormat("%b")
@@ -386,7 +592,9 @@ function drawRainfallChart() {
             .padding(0.2);
 
         svg.append("g")
+            .attr("class", "axis rainfall-x-axis")
             .attr("transform", `translate(0,${height})`)
+            .style("opacity", 0)
             .call(
                 d3.axisBottom(x)
                     .tickValues(
@@ -394,28 +602,101 @@ function drawRainfallChart() {
                             ? x.domain().filter((d, i) => i % 4 === 0)
                             : x.domain()
                     )
-            );
+            )
+            .transition().duration(rainfallAnimationDuration(420)).style("opacity", 1);
 
         svg.selectAll(".rainfall-bar")
             .data(data)
             .join("rect")
-            .attr("class", "rainfall-bar")
+            .attr("class", d => d.rainfall === 0 ? "rainfall-bar is-zero" : "rainfall-bar")
             .attr("x", d => x(formatDate(d.date)))
-            .attr("y", d => y(d.rainfall))
+            .attr("y", height)
             .attr("width", x.bandwidth())
-            .attr("height", d => height - y(d.rainfall))
-            .attr("fill", colors(rainfallState.city))
+            .attr("height", 0)
+            .attr("fill", d => d.rainfall === 0 ? "#f8fafc" : colors(rainfallState.city))
+            .attr("stroke", d => d.rainfall === 0 ? colors(rainfallState.city) : "none")
+            .attr("stroke-width", d => d.rainfall === 0 ? 1.5 : 0)
+            .attr("stroke-dasharray", d => d.rainfall === 0 ? "2,1" : null)
+            .attr("opacity", 0)
             .style("cursor", rainfallState.level === "month" ? "pointer" : "default")
+            .transition("rainfall-bars")
+            .delay((d, i) => rainfallAnimationDelay(Math.min(i * 12, 360)))
+            .duration(rainfallAnimationDuration(520))
+            .ease(d3.easeCubicOut)
+            .attr("y", barY)
+            .attr("height", barHeight)
+            .attr("opacity", 1);
+
+        const barSelection = svg.selectAll(".rainfall-bar");
+        const canDrillDown = rainfallState.level === "month";
+        bindRainfallBarInteractions(
+            barSelection,
+            canDrillDown,
+            d => `${d.city}, ${d3.timeFormat(rainfallState.level === "month" ? "%B %Y" : "%A, %d %B %Y")(d.date)}: ${formatAmount(d)} millimeters of rainfall${canDrillDown ? ". Activate to view daily details." : "."}`
+        );
+        barSelection.on("click", (event, d) => {
+            if (rainfallState.level === "month") {
+                rainfallState.month = d.date.getMonth() + 1;
+                rainfallState.level = "day";
+                drawRainfallChart();
+            }
+        }).on("keydown", (event, d) => {
+            if (rainfallState.level === "month" && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                rainfallState.month = d.date.getMonth() + 1;
+                rainfallState.level = "day";
+                drawRainfallChart();
+            }
+        });
+
+        svg.selectAll(".rainfall-hit-area")
+            .data(data)
+            .join("rect")
+            .attr("class", "rainfall-hit-area")
+            .attr("x", d => x(formatDate(d.date)))
+            .attr("y", height - 14)
+            .attr("width", x.bandwidth())
+            .attr("height", 14)
+            .attr("aria-hidden", "true")
+            .on("pointerenter", showRainfallTooltip)
+            .on("pointermove", event => positionRainfallTooltip(event))
+            .on("pointerleave", hideRainfallTooltip)
             .on("click", (event, d) => {
                 if (rainfallState.level === "month") {
                     rainfallState.month = d.date.getMonth() + 1;
                     rainfallState.level = "day";
                     drawRainfallChart();
                 }
-            })
-            .append("title")
-            .text(d => `${d3.timeFormat("%Y-%m-%d")(d.date)}: ${d.rainfall} mm`);
+            });
+
+        const zeroData = data.filter(d => d.rainfall === 0);
+        svg.selectAll(".rainfall-zero-label")
+            .data(zeroData)
+            .join("text")
+            .attr("class", "rainfall-zero-label")
+            .attr("x", d => x(formatDate(d.date)) + x.bandwidth() / 2)
+            .attr("y", height - ZERO_BAR_HEIGHT - 3)
+            .attr("text-anchor", "middle")
+            .attr("fill", colors(rainfallState.city))
+            .attr("opacity", 0)
+            .text("0")
+            .transition().delay((d, i) => rainfallAnimationDelay(Math.min(i * 12, 360) + 340))
+            .duration(rainfallAnimationDuration(220))
+            .attr("opacity", 1);
     }
+
+    if (data.some(d => d.rainfall === 0)) {
+        svg.append("text")
+            .attr("class", "zero-bar-note")
+            .attr("x", width)
+            .attr("y", -12)
+            .attr("text-anchor", "end")
+            .attr("opacity", 0)
+            .text("Dashed bars labeled 0 indicate no rainfall")
+            .transition().delay(rainfallAnimationDelay(180))
+            .duration(rainfallAnimationDuration(250)).attr("opacity", 1);
+    }
+
     drawCalendarHeatmap();
 }
 
@@ -466,9 +747,13 @@ function drawCalendarHeatmap() {
 
     const maxRainfall = d3.max(rows, d => d.precipitation) || 1;
 
-    const color = d3.scaleSequential(d3.interpolateBlues)
-        .domain([0, maxRainfall]);
+    // Full color syncing with the cities chosen colors
+    const cityColor = rainfallCityColors[rainfallState.city] || "#0284C7";
 
+    const color = d3.scaleSequential()
+        .domain([0, maxRainfall])
+        .interpolator(d3.interpolateRgb("#f8fafc", cityColor));  
+        
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     chart.selectAll(".day-name")
@@ -482,7 +767,7 @@ function drawCalendarHeatmap() {
         .attr("fill", "#64748b")
         .text(d => d);
 
-    chart.selectAll(".rainfall-day")
+    const calendarCells = chart.selectAll(".rainfall-day")
         .data(rows, d => d.dayStr)
         .join("rect")
         .attr("class", "rainfall-day")
@@ -494,10 +779,27 @@ function drawCalendarHeatmap() {
         .attr("height", cellSize)
         .attr("rx", 2)
         .attr("fill", d => color(d.precipitation))
+        .attr("stroke", d => d.precipitation === 0 ? "#cbd5e1" : "none")
+        .attr("opacity", 0)
         .style("cursor", "pointer")
         .on("click", (event, d) => showRainfallDetail(d))
-        .append("title")
-        .text(d => `${d.dayStr}: ${d.precipitation} mm`);
+        .on("pointerenter", (event, d) => {
+            const tooltip = getRainfallTooltip();
+            const amount = d.precipitation === 0 ? "0" : d3.format(",.1f")(d.precipitation);
+            tooltip.interrupt()
+                .html(`<strong>${d.city}</strong><br><span class="tooltip-period">${d3.timeFormat("%A, %d %B %Y")(d.date)}</span><br>Rainfall: <strong>${amount} mm</strong>`)
+                .attr("aria-hidden", "false");
+            positionRainfallTooltip(event);
+            tooltip.transition().duration(rainfallAnimationDuration(140)).style("opacity", 0.96);
+        })
+        .on("pointermove", event => positionRainfallTooltip(event))
+        .on("pointerleave", hideRainfallTooltip);
+
+    calendarCells.transition("rainfall-calendar")
+        .delay((d, i) => rainfallAnimationDelay(Math.min(i * 1.2, 260)))
+        .duration(rainfallAnimationDuration(360))
+        .ease(d3.easeCubicOut)
+        .attr("opacity", 1);
 }
 // Show detailed rainfall information for a specific day.
 function showRainfallDetail(day) {

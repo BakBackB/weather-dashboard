@@ -143,6 +143,90 @@
     cursor: pointer;
 }
 
+.rainfall-city-filters {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group-label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#rainfall-chart {
+    position: relative;
+}
+
+#rainfall-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.rainfall-bar {
+    transition: filter 160ms ease, opacity 160ms ease;
+}
+
+.rainfall-bar:hover,
+.rainfall-bar:focus {
+    filter: brightness(1.12);
+    outline: none;
+}
+
+.rainfall-bar:focus-visible {
+    stroke: #0f172a;
+    stroke-width: 2px;
+}
+
+.rainfall-bar.is-zero {
+    stroke-linejoin: round;
+}
+
+.rainfall-hit-area {
+    fill: transparent;
+    cursor: pointer;
+    pointer-events: all;
+}
+
+.rainfall-zero-label {
+    font-size: 10px;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.zero-bar-note {
+    fill: #64748b;
+    font-size: 11px;
+}
+
+.rainfall-empty {
+    min-height: 2rem;
+    margin: 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.rainfall-tooltip {
+    z-index: 1000;
+    max-width: 240px;
+    line-height: 1.5;
+}
+
+.tooltip-period {
+    color: #cbd5e1;
+}
+
+#rainfall-heatmap .rainfall-day {
+    transition: stroke 140ms ease, stroke-width 140ms ease;
+}
+
+#rainfall-heatmap .rainfall-day:hover {
+    stroke: #0f172a;
+    stroke-width: 2px;
+}
+
 .extreme-chart-title {
     text-align: center;
     color: #2c3e50;
@@ -158,4 +242,11 @@
 
 .extreme-chart .dot {
     cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rainfall-bar,
+    #rainfall-heatmap .rainfall-day {
+        transition: none;
+    }
 }
