@@ -700,13 +700,14 @@ function drawRainfallChart() {
     drawCalendarHeatmap();
 }
 
-// Draw a calendar heatmap for daily rainfall in a selected city and year.
+// Draw a calendar heatmap for daily rainfall in a selected city and period.
 function drawCalendarHeatmap() {
     const container = d3.select("#rainfall-heatmap");
     container.selectAll("*").remove();
 
     const detail = document.getElementById("rainfall-detail");
     if (detail) detail.hidden = true;
+    const isMonthView = rainfallState.level === "day" && Number.isInteger(rainfallState.month);
 
     // A city and year are selected after the user clicks an annual bar.
     if (!rainfallState.city || !rainfallState.year) {
@@ -718,29 +719,39 @@ function drawCalendarHeatmap() {
     const rows = rawParsedWeather
         .filter(d =>
             d.city === rainfallState.city &&
-            d.date.getFullYear() === rainfallState.year
+            d.date.getFullYear() === rainfallState.year &&
+            (!isMonthView || d.date.getMonth() + 1 === rainfallState.month)
         )
         .sort((a, b) => a.date - b.date);
 
     if (rows.length === 0) {
-        container.append("p").text("No daily rainfall data available.");
+        const period = isMonthView
+            ? `${d3.timeFormat("%B %Y")(new Date(rainfallState.year, rainfallState.month - 1, 1))}`
+            : rainfallState.year;
+        container.append("p").text(`No daily rainfall data available for ${period}.`);
         return;
     }
 
     const cellSize = 14;
     const gap = 3;
-    const yearStart = new Date(rainfallState.year, 0, 1);
-    const yearEnd = new Date(rainfallState.year + 1, 0, 1);
-    const weekCount = d3.timeWeek.count(yearStart, yearEnd);
-    const width = 65 + (weekCount + 1) * (cellSize + gap);
+    const periodStart = isMonthView
+        ? new Date(rainfallState.year, rainfallState.month - 1, 1)
+        : new Date(rainfallState.year, 0, 1);
+    const weekStart = d3.timeWeek.floor(periodStart);
+    const weekIndex = date => d3.timeWeek.count(weekStart, date);
+    const weekCount = d3.max(rows, d => weekIndex(d.date)) + 1;
+    const width = 65 + weekCount * (cellSize + gap);
     const height = 55 + 7 * (cellSize + gap);
+    const periodLabel = isMonthView
+        ? d3.timeFormat("%B %Y")(periodStart)
+        : String(rainfallState.year);
 
     const svg = container.append("svg")
         .attr("width", width)
         .attr("height", height)
         .attr("viewBox", `0 0 ${width} ${height}`)
         .attr("role", "img")
-        .attr("aria-label", `Daily rainfall calendar for ${rainfallState.city} in ${rainfallState.year}`);
+        .attr("aria-label", `Daily rainfall calendar for ${rainfallState.city} in ${periodLabel}`);
 
     const chart = svg.append("g")
         .attr("transform", "translate(50,35)");
@@ -771,9 +782,7 @@ function drawCalendarHeatmap() {
         .data(rows, d => d.dayStr)
         .join("rect")
         .attr("class", "rainfall-day")
-        .attr("x", d =>
-            d3.timeWeek.count(d3.timeYear(d.date), d.date) * (cellSize + gap)
-        )
+        .attr("x", d => weekIndex(d.date) * (cellSize + gap))
         .attr("y", d => d.date.getDay() * (cellSize + gap))
         .attr("width", cellSize)
         .attr("height", cellSize)
