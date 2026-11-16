@@ -28,6 +28,7 @@ async function loadWeatherData() {
                 tempMean: Number(d.temperature_2m_mean),
                 tempMax: Number(d.temperature_2m_max),
                 precipitation: Number(d.precipitation_sum),
+                relativeHumidityMean: Number(d.relative_humidity_2m_mean),
                 precipitationHours: Number(d.precipitation_hours),
             };
         }).filter(d => d.date !== null && !isNaN(d.tempMean));

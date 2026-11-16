@@ -56,7 +56,7 @@
                     <button id="rainfallBackButton" class="back-btn">← Back</button>
                     <span id="rainfallViewLabel" class="view-label"></span>
                 </div>
-                <div id="rainfallCityFilters" class="city-filters rainfall-city-filters" role="group" aria-label="Filter annual rainfall by city">
+                <div id="rainfallCityFilters" class="city-filters rainfall-city-filters" role="group" aria-label="Filter rainfall charts by city">
                     <span class="filter-group-label">Show cities:</span>
                     <label class="filter-label hanoi-label">
                         <input type="checkbox" value="Hanoi" checked> Hanoi
@@ -75,6 +75,10 @@
             <div id="rainfall-heatmap"></div>
 
             <aside id="rainfall-detail" hidden></aside>
+
+            <h3 class="extreme-chart-title">Synchronized Precipitation–Humidity Trend</h3>
+            <p class="chart-description">Color identifies city, Solid lines show precipitation (mm) and dashed lines show humidity (%).</p>
+            <div id="precipitation-humidity-chart" class="precipitation-humidity-chart"></div>
         </section>
 
         <section id="extremes" class="tab-panel" hidden>

@@ -389,6 +389,7 @@ function drawRainfallChart() {
             : "No rainfall data available.";
         container.append("p").attr("class", "rainfall-empty").text(message);
         drawCalendarHeatmap();
+        drawPrecipitationHumidityChart();
         return;
     }
 
@@ -698,6 +699,7 @@ function drawRainfallChart() {
     }
 
     drawCalendarHeatmap();
+    drawPrecipitationHumidityChart();
 }
 
 // Draw a calendar heatmap for daily rainfall in a selected city and period.
@@ -830,6 +832,246 @@ function showRainfallDetail(day) {
         <p>Mean temperature: ${day.tempMean.toFixed(1)} °C</p>
         <p>Maximum temperature: ${day.tempMax.toFixed(1)} °C</p>
     `;
+}
+
+// Compare the seasonal cycle of monthly rainfall totals and mean humidity.
+function drawPrecipitationHumidityChart() {
+    const container = d3.select("#precipitation-humidity-chart");
+    container.selectAll("*").remove();
+
+    const cities = rainfallState.level === "year"
+        ? rainfallCities.filter(city => rainfallSelectedCities.has(city))
+        : rainfallState.city ? [rainfallState.city] : [];
+    const scopedRows = rawParsedWeather.filter(d =>
+        cities.includes(d.city) &&
+        (!rainfallState.year || d.date.getFullYear() === rainfallState.year)
+    );
+
+    if (cities.length === 0 || scopedRows.length === 0) {
+        container.append("p")
+            .attr("class", "rainfall-empty")
+            .text("Select a city with rainfall and humidity data to display this trend.");
+        return;
+    }
+
+    // First compute each year's monthly rainfall total and daily humidity mean.
+    const monthlyByYear = d3.rollups(
+        scopedRows,
+        rows => ({
+            precipitation: d3.sum(rows, d => d.precipitation),
+            humidity: d3.mean(rows, d => d.relativeHumidityMean)
+        }),
+        d => d.city,
+        d => d.date.getFullYear(),
+        d => d.date.getMonth()
+    );
+
+    const observations = [];
+    for (const [city, years] of monthlyByYear) {
+        for (const [year, months] of years) {
+            for (const [month, values] of months) {
+                observations.push({ city, year, month, ...values });
+            }
+        }
+    }
+
+    // Average those monthly observations across years for the annual overview.
+    const data = d3.rollups(
+        observations,
+        rows => ({
+            precipitation: d3.mean(rows, d => d.precipitation),
+            humidity: d3.mean(rows, d => d.humidity)
+        }),
+        d => d.city,
+        d => d.month
+    ).flatMap(([city, months]) => months.map(([month, values]) => ({
+        city,
+        month,
+        date: new Date(2000, month, 15),
+        precipitation: values.precipitation,
+        humidity: values.humidity
+    }))).sort((a, b) => a.month - b.month);
+
+    if (data.length === 0) {
+        container.append("p")
+            .attr("class", "rainfall-empty")
+            .text("No monthly precipitation and humidity data available.");
+        return;
+    }
+
+    const margin = { top: 48, right: 72, bottom: 86, left: 76 };
+    const outerWidth = 850;
+    const outerHeight = 470;
+    const width = outerWidth - margin.left - margin.right;
+    const height = outerHeight - margin.top - margin.bottom;
+    const color = d3.scaleOrdinal()
+        .domain(rainfallCities)
+        .range(rainfallCities.map(city => rainfallCityColors[city]));
+    const maxPrecipitation = d3.max(data, d => d.precipitation) || 1;
+    const x = d3.scaleTime()
+        .domain([new Date(2000, 0, 1), new Date(2001, 0, 1)])
+        .range([0, width]);
+    const yPrecipitation = d3.scaleLinear()
+        .domain([0, maxPrecipitation])
+        .nice()
+        .range([height, 0]);
+    const yHumidity = d3.scaleLinear()
+        .domain([0, 100])
+        .range([height, 0]);
+    const months = d3.range(12).map(month => new Date(2000, month, 1));
+
+    const svg = container.append("svg")
+        .attr("width", outerWidth)
+        .attr("height", outerHeight)
+        .attr("viewBox", `0 0 ${outerWidth} ${outerHeight}`)
+        .attr("role", "img")
+        .attr("aria-label", "Monthly precipitation and mean relative humidity trend")
+        .style("opacity", 0);
+    const chart = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+    svg.transition().duration(rainfallAnimationDuration(260)).style("opacity", 1);
+
+    chart.append("g")
+        .selectAll("line")
+        .data(yPrecipitation.ticks(6))
+        .join("line")
+        .attr("x1", 0)
+        .attr("x2", width)
+        .attr("y1", d => yPrecipitation(d))
+        .attr("y2", d => yPrecipitation(d))
+        .attr("stroke", "#e2e8f0")
+        .attr("stroke-dasharray", "4,4");
+
+    chart.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).tickValues(months).tickFormat(d3.timeFormat("%b")));
+    chart.append("g")
+        .attr("class", "axis")
+        .call(d3.axisLeft(yPrecipitation).ticks(6));
+    chart.append("g")
+        .attr("class", "axis humidity-axis")
+        .attr("transform", `translate(${width},0)`)
+        .call(d3.axisRight(yHumidity).tickValues([0, 20, 40, 60, 80, 100]).tickFormat(d => `${d}%`));
+
+    chart.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", -54)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#64748b")
+        .attr("font-size", "12px")
+        .text(rainfallState.year ? "Monthly precipitation (mm)" : "Mean monthly precipitation (mm)");
+    chart.append("text")
+        .attr("transform", "rotate(90)")
+        .attr("x", height / 2)
+        .attr("y", -width - 48)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#64748b")
+        .attr("font-size", "12px")
+        .text("Mean relative humidity (%)");
+    chart.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + 38)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#64748b")
+        .attr("font-size", "12px")
+        .text("Month of year");
+
+    const precipitationLine = d3.line()
+        .defined(d => Number.isFinite(d.precipitation))
+        .x(d => x(d.date))
+        .y(d => yPrecipitation(d.precipitation))
+        .curve(d3.curveMonotoneX);
+    const humidityLine = d3.line()
+        .defined(d => Number.isFinite(d.humidity))
+        .x(d => x(d.date))
+        .y(d => yHumidity(d.humidity))
+        .curve(d3.curveMonotoneX);
+
+    const cityGroups = chart.selectAll(".precipitation-humidity-city")
+        .data(cities)
+        .join("g")
+        .attr("class", "precipitation-humidity-city")
+        .attr("data-city", d => d);
+
+    cityGroups.each(function(city) {
+        const cityData = data.filter(d => d.city === city);
+        const group = d3.select(this);
+        group.append("path")
+            .datum(cityData)
+            .attr("class", "precipitation-line")
+            .attr("fill", "none")
+            .attr("stroke", color(city))
+            .attr("stroke-width", 2.5)
+            .attr("d", precipitationLine);
+        group.append("path")
+            .datum(cityData)
+            .attr("class", "humidity-line")
+            .attr("fill", "none")
+            .attr("stroke", color(city))
+            .attr("stroke-width", 2)
+            .attr("stroke-dasharray", "6,4")
+            .attr("d", humidityLine);
+    });
+
+    const hoverLine = chart.append("line")
+        .attr("class", "precipitation-humidity-hover-line")
+        .attr("y1", 0)
+        .attr("y2", height)
+        .attr("stroke", "#64748b")
+        .attr("stroke-dasharray", "2,3")
+        .attr("opacity", 0)
+        .style("pointer-events", "none");
+
+    // One hover target per month reports both measures for every visible city.
+    const monthlyTooltipData = d3.range(12).map(month => ({
+        month,
+        date: new Date(2000, month, 15),
+        cities: cities.map(city => data.find(d => d.city === city && d.month === month)).filter(Boolean)
+    }));
+    chart.selectAll(".precipitation-humidity-hit")
+        .data(monthlyTooltipData)
+        .join("rect")
+        .attr("class", "precipitation-humidity-hit")
+        .attr("x", d => x(new Date(2000, d.month, 1)))
+        .attr("y", 0)
+        .attr("width", d => x(new Date(2000, d.month + 1, 1)) - x(new Date(2000, d.month, 1)))
+        .attr("height", height)
+        .on("pointerenter", (event, d) => {
+            const tooltip = getRainfallTooltip();
+            const rows = d.cities.map(cityData =>
+                `<span style="color:${color(cityData.city)}">● ${cityData.city}</span>: ${d3.format(",.1f")(cityData.precipitation)} mm, ${Number.isFinite(cityData.humidity) ? `${d3.format(".1f")(cityData.humidity)}% RH` : "humidity unavailable"}`
+            );
+            tooltip.interrupt()
+                .html(`<strong>${d3.timeFormat("%B")(d.date)}</strong><br>${rows.join("<br>")}`)
+                .attr("aria-hidden", "false");
+            positionRainfallTooltip(event);
+            tooltip.transition().duration(rainfallAnimationDuration(140)).style("opacity", 0.96);
+            hoverLine.attr("x1", x(d.date)).attr("x2", x(d.date))
+                .transition().duration(rainfallAnimationDuration(100)).attr("opacity", 0.75);
+        })
+        .on("pointermove", event => positionRainfallTooltip(event))
+        .on("pointerleave", () => {
+            hideRainfallTooltip();
+            hoverLine.transition().duration(rainfallAnimationDuration(120)).attr("opacity", 0);
+        });
+
+    // City colors match the rainfall filters; this key distinguishes the two measures.
+    const measureLegend = svg.append("g")
+        .attr("class", "precipitation-humidity-legend")
+        .attr("transform", `translate(${margin.left + width / 2 - 125},${margin.top + height + 64})`);
+    measureLegend.append("line")
+        .attr("x1", 0).attr("x2", 26).attr("y1", 0).attr("y2", 0)
+        .attr("stroke", "#475569").attr("stroke-width", 2.5);
+    measureLegend.append("text")
+        .attr("x", 32).attr("y", 4).text("Precipitation");
+    measureLegend.append("line")
+        .attr("x1", 145).attr("x2", 171).attr("y1", 0).attr("y2", 0)
+        .attr("stroke", "#475569").attr("stroke-width", 2)
+        .attr("stroke-dasharray", "6,4");
+    measureLegend.append("text")
+        .attr("x", 177).attr("y", 4).text("Relative humidity");
 }
 
 // Annual extreme weather charts.

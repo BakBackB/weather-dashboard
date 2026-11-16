@@ -218,6 +218,41 @@
     color: #cbd5e1;
 }
 
+.chart-description {
+    max-width: 760px;
+    margin: -5px auto 12px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.precipitation-humidity-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.precipitation-line,
+.humidity-line {
+    transition: opacity 180ms ease, stroke-width 180ms ease;
+}
+
+.precipitation-humidity-hit {
+    fill: transparent;
+    pointer-events: all;
+}
+
+.precipitation-humidity-legend {
+    fill: #475569;
+    font-size: 12px;
+}
+
+.humidity-axis text {
+    fill: #64748b;
+}
+
 #rainfall-heatmap .rainfall-day {
     transition: stroke 140ms ease, stroke-width 140ms ease;
 }
@@ -246,6 +281,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .rainfall-bar,
+    .precipitation-line,
+    .humidity-line,
     #rainfall-heatmap .rainfall-day {
         transition: none;
     }
