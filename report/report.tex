@@ -44,8 +44,9 @@ day-to-day changes are about twice as large. HCMC stays warm all year but, contr
 expectation, has the \emph{largest} daily range (Tmax\,$-$\,Tmin). That range peaks in its dry season and is
 strongly tied to low humidity ($r=-0.83$). Coastal Da Nang has the smallest daily range.
 Year-to-year changes follow El Niño: El Niño months are 0.6--0.7\,\textdegree C warmer than La Niña months, with a delay of 2--4 months.
-Based on these findings, the dashboard's temperature tab opens with two \emph{Key Insights} charts
-(a typical year, and 2015--2025 with El Niño and sudden temperature drops), followed by linked detail views for exploration.
+Based on these findings, the dashboard's temperature tab shows two \emph{Key Insights} charts
+(a typical year, and 2015--2025 with El Niño and sudden temperature drops), followed by one exploratory chart with drill-down,
+filters and zoom.
 \end{abstract}
 
 %=====================================================================
@@ -301,71 +302,90 @@ linked views, and Shneiderman's mantra (\emph{overview first, zoom and filter, d
 \toprule
 Option & Strength & Weakness & Used \\
 \midrule
-Annual line chart with drill-down (existing) & Overview + zoom to month and day; shows day-to-day changes & Annual means hide the seasons, which carry the main differences & \checkmark \\
-Seasonal multi-line + min/max band & Mean on a common scale; band width shows the DTR & Bands of three cities overlap and become muddy & replaced \\
 Monthly min--max bars per city (``fingerprint'') & Level, seasonality and DTR in one encoding, no overlap & 36 bars; the reader needs the legend line to decode it & \checkmark \\
-Year $\times$ month anomaly heatmap & Shows all 132 months; unusual months stand out & Colour is less precise than position; needs a diverging map & \checkmark \\
 Anomaly timeline with ENSO shading, drop ticks and brush & El Niño, its delay and day-to-day volatility on one time axis; zoomable & Monthly anomalies are noisy (3-month smoothing needed) & \checkmark \\
-Monthly box plots (small multiples) & Median, IQR and outliers per month; shared y-axis & Hides multimodality (course: ``one box plot, four distributions'') & \checkmark \\
+Exploratory line chart with drill-down, variable selector, season filter and brush & One view for all variables and time scales; details on demand & Shows one variable at a time & \checkmark \\
+Seasonal multi-line + min/max band & Mean on a common scale; band width shows the DTR & Bands of three cities overlap and become muddy & no \\
+Year $\times$ month anomaly heatmap & Shows all 132 months; unusual months stand out & Colour is less precise than position; needs a diverging map & report \\
+Monthly box plots (small multiples) & Median, IQR and outliers per month; shared y-axis & Hides multimodality (course: ``one box plot, four distributions'') & report \\
+Scatter DTR vs.\ driver (small multiples) & Shows the relationship and its strength per city & 4\,000 points per panel cause overplotting & report \\
+Bubble chart humidity $\times$ sunshine, size = DTR & Both drivers and the outcome in one view & Bubble sizes differ too little; area is less precise than position & no \\
+Stacked rows: humidity, sunshine, DTR & Position encoding; co-movement visible down a column & Three rows; hard to read at a glance & no \\
 Violin / KDE plots & Show the shape of the distribution & 36 violins are hard to read; results depend on the bandwidth & report \\
 Histogram per city & Simple, honest & The number of bins changes the picture; no seasonal dimension & report \\
-Dual-axis chart (sunshine vs.\ temp.) & Compact & Two y-scales suggest false relationships; hard to read & no \\
-Scatter DTR vs.\ driver (small multiples) & Shows the relationship and its strength per city & 4\,000 points per panel cause overplotting & \checkmark \\
+Dual-axis chart (sunshine vs.\ temp.) & Compact & Different units force freely chosen scales; the overlap of the lines becomes a design choice & no \\
 \bottomrule
 \end{tabularx}
-\caption{Candidate visualizations for RQ1.}
+\caption{Candidate visualizations for RQ1. ``Report'' means the chart is used in the EDA (Section~3) but not in the dashboard.}
 \end{table}
 
-We replaced the proposal's dual-axis sunshine chart with a \emph{driver selector} (humidity or sunshine) on the scatter plots.
-This keeps one variable per axis and avoids comparing two scales against each other.
+During development the dashboard went through several more charts (heatmap, box plots, scatter plots, a sunshine/daylight chart,
+a bubble chart and stacked line rows). They are kept in the report's EDA, but the dashboard was reduced to three charts, so that
+each one carries a clear message and the tab stays easy to use. The proposal's dual-axis solar chart was not built: temperature and
+sunshine have different units, so the two axes could be scaled freely and their alignment would be a design choice
+(course: ``Dual Axis (DON'T)'', Views lecture, slide 41). Instead, the explorer can show temperature and sunshine on the same time
+axis one after the other, and the EDA compares them in Figure~\ref{fig:humsun}.
 
 %=====================================================================
 \section{Implemented Dashboard}
 The \emph{Temperature Dynamics \& Variations} tab follows Shneiderman's mantra: two overview charts with the key insights first,
-then detail views for zooming, filtering and details on demand. One set of city checkboxes at the top filters every chart.
+then one exploratory chart for zooming, filtering and details on demand. One set of city checkboxes at the top filters every chart.
 
 \subsection*{Key Insights}
-Two charts summarise the findings (Figure~\ref{fig:insights}):
 \begin{enumerate}
     \item \textbf{A typical year (``fingerprint'')}: for each month and city, a bar from the average daily minimum to the average
     daily maximum, with a tick and a thin line for the monthly mean. One encoding shows three findings: the \emph{position} of the bars
     gives the level, their \emph{movement} over the year the seasonality, and their \emph{length} the daily range.
-    The tooltip adds that month's humidity and sunshine, so the explanation is one hover away.
-    This chart replaces an earlier seasonal line chart whose min--max bands overlapped.
+    Hovering a bar highlights it; the tooltip adds that month's humidity and sunshine.
     \item \textbf{2015--2025}: the 3-month smoothed monthly anomaly per city, with El Niño and La Niña periods shaded.
     Below it, one lane per city has a tick for every day on which the mean fell by 4\,\textdegree C or more.
     A small strip at the bottom shows the whole period; dragging in it zooms the chart above (overview + detail).
 \end{enumerate}
-\subsection*{Explore the Details}
-\begin{enumerate}
-    \item \textbf{Annual, monthly and daily mean temperature} (the original chart): drill-down from years to months to days,
-    with breadcrumb navigation.
-    \item \textbf{Unusually warm or cold months}: a year $\times$ month heatmap per city of the anomaly from the 10-year monthly average,
-    on a shared diverging scale centred on 0. Clicking a cell opens that month's daily temperatures in the drill-down chart.
-    \item \textbf{Daily range by month}: box plots as small multiples, one panel per city on a shared y-axis, with outliers drawn as circles.
-    \item \textbf{Drivers}: scatter plots of DTR against humidity or sunshine, one panel per city, each with a regression line and Pearson $r$.
-\end{enumerate}
-Hovering a month in the heatmap or a box plot highlights the same month in all three detail views (linked highlighting).
-For example, hovering February shows that HCMC's large dry-season DTR comes from its sunniest days (Figure~\ref{fig:linked}).
+
+\subsection*{Explore}
+One line chart (Figure~\ref{fig:explorer}) for free exploration:
+\begin{itemize}
+    \item \textbf{Variable:} mean, maximum or minimum temperature, daily range, humidity or sunshine.
+    \item \textbf{Drill-down:} yearly means $\rightarrow$ the months of a year $\rightarrow$ the days of a month, by clicking a point;
+    a breadcrumb (``All Years › 2016 › February'') leads back up. Clicking a day shows its exact values for all cities in a table
+    below the chart; the tooltip shows all variables of any point.
+    \item \textbf{Season filter:} \emph{All Year}, Q1 (Jan--Mar), Q2 (Apr--Jun), Q3 (Jul--Sep) and Q4 (Oct--Dec). The yearly view then
+    shows the mean of that quarter per year, the monthly view only its three months; a day view always shows its whole month.
+    We used calendar quarters instead of meteorological seasons (Dec--Feb = winter) because a winter would cross the year boundary:
+    in the yearly view, December would be counted in the wrong year, and the monthly line would jump from February to December.
+    \item \textbf{Brush zoom:} dragging across the chart zooms into that time range; a double-click resets it.
+\end{itemize}
+
+\paragraph{Baselines: when the y-axis may start above 0.}
+The course asks for ``a baseline that shows the data, not the zero-point'' and to think about ``what is a meaningful baseline''
+(Design Guideline lecture, slides 16--17), and warns against truncated bar charts (slide 15). The deciding factor is the data type
+(Data lecture, slides 28--30): for \emph{interval} data the position of zero is arbitrary, for \emph{ratio} data zero means ``none''.
+\begin{itemize}
+    \item \textbf{Temperature in \textdegree C is interval data.} 0\,\textdegree C is not ``no temperature'', and 20\,\textdegree C is not
+    ``twice as warm'' as 10\,\textdegree C. A zero baseline would only compress the differences we want to show. The explorer therefore
+    fits its y-axis to the visible data, also after zooming. This is safe because lines encode values by \emph{position}, not by
+    length, so no length or area exaggerates a difference (no lie factor).
+    \item \textbf{The bars in ``A Typical Year'' float} from the average minimum to the average maximum. Their \emph{length} is the
+    daily range, which is a difference and stays correct with any baseline.
+    \item \textbf{Daily range, humidity and sunshine are ratio data} and can never be negative, so the explorer's fitted axis never
+    goes below 0 for them. As lines they still encode position, so a baseline above 0 (e.g.\ humidity from 60\,\%) does not distort them.
+\end{itemize}
 
 \paragraph{Design decisions.}
 \begin{itemize}
-    \item \textbf{Position first:} all quantitative values except the heatmap anomalies are encoded by position on aligned, shared scales.
-    Colour encodes the city, and in the heatmap the anomaly (with exact values in the tooltip).
+    \item \textbf{Position first:} all quantitative values are encoded by position on aligned, shared scales; colour encodes the city.
     \item \textbf{Consistent colour:} the team palette (\HN{} blue, \DN{} amber, \HCM{} red) is used on all tabs. City names are always written
     as text too, so the charts can be read without telling the colours apart (amber and red can be confused under deuteranopia).
     \item \textbf{Data-ink:} light dashed gridlines, no chart borders, no 3D or decoration.
-    \item \textbf{Integrity:} the y-axis of the box plots and the scatter plots starts at 0 because the DTR is a magnitude.
-    Temperature charts use a fitted range, which is common practice for interval data.
-    \item \textbf{Overplotting:} small, semi-transparent points (opacity 0.25) are used for the 12\,054 daily observations.
+    \item \textbf{Integrity:} temperature lines use a fitted baseline (see \emph{Baselines} above); no bar is truncated.
 \end{itemize}
 
 \paragraph{Code.}
-The temperature charts are in \texttt{js/temperature.js} (shared helpers and detail charts) and \texttt{js/temperatureInsights.js}
-(Key Insights). The only changes to shared files are:
+The temperature charts are in \texttt{js/temperature.js} (shared helpers and the explorer) and \texttt{js/temperatureInsights.js}
+(Key Insights). The changes to shared files are:
 (i) three new fields (\texttt{tempMin}, \texttt{humidity}, \texttt{sunshineHours}) on the parsed rows in \texttt{dataLoader.js},
-(ii) in \texttt{main.js}, two event registrations plus changes inside the existing temperature function \texttt{drawTemperatureChart}
-(breadcrumb navigation and opening a month selected in the heatmap),
+(ii) in \texttt{main.js}, the original temperature function \texttt{drawTemperatureChart} was replaced by the explorer, and two event
+registrations were added,
 (iii) new markup inside the temperature section of \texttt{index.html},
 (iv) new CSS classes prefixed with \texttt{temperature-}, and
 (v) the new file \texttt{data/oni.csv} with the NOAA El Niño index for 2014--2025.
@@ -380,10 +400,10 @@ The rainfall and extreme-weather code was not changed.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.9\linewidth,height=0.75\textheight,keepaspectratio]{dashboard_linked}
-\caption{Linked detail views: Hanoi filtered out, sunshine selected as the driver, and February hovered in the HCMC box plot.
-The same month is highlighted in the heatmap and the scatter plots.}
-\label{fig:linked}
+\includegraphics[width=0.9\linewidth,height=0.75\textheight,keepaspectratio]{dashboard_explorer}
+\caption{The explorer showing the daily range in February 2016. 14 February is selected: Hanoi's range was 14\,\textdegree C on that
+dry, sunny day, and the table below gives the exact values of all cities.}
+\label{fig:explorer}
 \end{figure}
 
 %=====================================================================
