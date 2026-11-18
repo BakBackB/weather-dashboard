@@ -15,6 +15,7 @@ const rainfallState = {
     year: null,
     month: null
 };
+let selectedRainfallDate = null;
 
 // Rainfall colors for each city  
 const rainfallCityColors = { 
@@ -390,6 +391,7 @@ function drawRainfallChart() {
         container.append("p").attr("class", "rainfall-empty").text(message);
         drawCalendarHeatmap();
         drawPrecipitationHumidityChart();
+        drawRainfallDurationSubgraph();
         return;
     }
 
@@ -406,7 +408,7 @@ function drawRainfallChart() {
         backButton.style.display = "inline-block";
     } else {
         const monthName = d3.timeFormat("%B")(data[0].date);
-        label.textContent = `${rainfallState.city}: daily rainfall in ${monthName} ${rainfallState.year}`;
+        label.textContent = `${rainfallState.city}: daily rainfall in ${monthName} ${rainfallState.year} (click a bar for duration details)`;
         backButton.style.display = "inline-block";
     }
 
@@ -414,10 +416,12 @@ function drawRainfallChart() {
         if (rainfallState.level === "day") {
             rainfallState.level = "month";
             rainfallState.month = null;
+            selectedRainfallDate = null;
         } else if (rainfallState.level === "month") {
             rainfallState.level = "year";
             rainfallState.city = null;
             rainfallState.year = null;
+            selectedRainfallDate = null;
         }
 
         drawRainfallChart();
@@ -538,6 +542,7 @@ function drawRainfallChart() {
             rainfallState.city = d.city;
             rainfallState.year = d.date.getFullYear();
             rainfallState.level = "month";
+            selectedRainfallDate = null;
             drawRainfallChart();
         }).on("keydown", (event, d) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -545,6 +550,7 @@ function drawRainfallChart() {
                 rainfallState.city = d.city;
                 rainfallState.year = d.date.getFullYear();
                 rainfallState.level = "month";
+                selectedRainfallDate = null;
                 drawRainfallChart();
             }
         });
@@ -609,7 +615,11 @@ function drawRainfallChart() {
         svg.selectAll(".rainfall-bar")
             .data(data)
             .join("rect")
-            .attr("class", d => d.rainfall === 0 ? "rainfall-bar is-zero" : "rainfall-bar")
+            .attr("class", d => [
+                "rainfall-bar",
+                d.rainfall === 0 ? "is-zero" : "",
+                selectedRainfallDate === d.date.getTime() ? "is-selected" : ""
+            ].filter(Boolean).join(" "))
             .attr("x", d => x(formatDate(d.date)))
             .attr("y", height)
             .attr("width", x.bandwidth())
@@ -619,7 +629,7 @@ function drawRainfallChart() {
             .attr("stroke-width", d => d.rainfall === 0 ? 1.5 : 0)
             .attr("stroke-dasharray", d => d.rainfall === 0 ? "2,1" : null)
             .attr("opacity", 0)
-            .style("cursor", rainfallState.level === "month" ? "pointer" : "default")
+            .style("cursor", rainfallState.level === "month" || rainfallState.level === "day" ? "pointer" : "default")
             .transition("rainfall-bars")
             .delay((d, i) => rainfallAnimationDelay(Math.min(i * 12, 360)))
             .duration(rainfallAnimationDuration(520))
@@ -629,24 +639,33 @@ function drawRainfallChart() {
             .attr("opacity", 1);
 
         const barSelection = svg.selectAll(".rainfall-bar");
-        const canDrillDown = rainfallState.level === "month";
+        const canDrillDown = rainfallState.level === "month" || rainfallState.level === "day";
         bindRainfallBarInteractions(
             barSelection,
             canDrillDown,
-            d => `${d.city}, ${d3.timeFormat(rainfallState.level === "month" ? "%B %Y" : "%A, %d %B %Y")(d.date)}: ${formatAmount(d)} millimeters of rainfall${canDrillDown ? ". Activate to view daily details." : "."}`
+            d => rainfallState.level === "month"
+                ? `${d.city}, ${d3.timeFormat("%B %Y")(d.date)}: ${formatAmount(d)} millimeters of rainfall. Activate to view daily details.`
+                : `${d.city}, ${d3.timeFormat("%A, %d %B %Y")(d.date)}: ${formatAmount(d)} millimeters of rainfall. Activate to compare rainfall duration.`
         );
         barSelection.on("click", (event, d) => {
             if (rainfallState.level === "month") {
                 rainfallState.month = d.date.getMonth() + 1;
                 rainfallState.level = "day";
+                selectedRainfallDate = null;
                 drawRainfallChart();
+            } else if (rainfallState.level === "day") {
+                selectRainfallDurationDay(d.date);
             }
         }).on("keydown", (event, d) => {
             if (rainfallState.level === "month" && (event.key === "Enter" || event.key === " ")) {
                 event.preventDefault();
                 rainfallState.month = d.date.getMonth() + 1;
                 rainfallState.level = "day";
+                selectedRainfallDate = null;
                 drawRainfallChart();
+            } else if (rainfallState.level === "day" && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                selectRainfallDurationDay(d.date);
             }
         });
 
@@ -666,7 +685,10 @@ function drawRainfallChart() {
                 if (rainfallState.level === "month") {
                     rainfallState.month = d.date.getMonth() + 1;
                     rainfallState.level = "day";
+                    selectedRainfallDate = null;
                     drawRainfallChart();
+                } else if (rainfallState.level === "day") {
+                    selectRainfallDurationDay(d.date);
                 }
             });
 
@@ -700,12 +722,180 @@ function drawRainfallChart() {
 
     drawCalendarHeatmap();
     drawPrecipitationHumidityChart();
+    drawRainfallDurationSubgraph();
+}
+
+function selectRainfallDurationDay(date) {
+    selectedRainfallDate = date.getTime();
+    hideRainfallTooltip();
+    d3.select("#rainfall-chart")
+        .selectAll(".rainfall-bar")
+        .classed("is-selected", d => d.date.getTime() === selectedRainfallDate);
+    drawRainfallDurationSubgraph();
+}
+
+// Show the selected day's rainfall amount against rain duration for the month.
+function drawRainfallDurationSubgraph() {
+    const panel = document.getElementById("rainfall-duration-breakdown");
+    const summary = d3.select("#rainfall-duration-summary");
+    const container = d3.select("#rainfall-duration-chart");
+    container.selectAll("*").remove();
+
+    const isDailyView = rainfallState.level === "day" &&
+        rainfallState.city && rainfallState.year && Number.isInteger(rainfallState.month);
+    if (!panel || !isDailyView || selectedRainfallDate === null) {
+        if (panel) panel.hidden = true;
+        summary.text("");
+        return;
+    }
+
+    const monthRows = rawParsedWeather
+        .filter(d =>
+            d.city === rainfallState.city &&
+            d.date.getFullYear() === rainfallState.year &&
+            d.date.getMonth() + 1 === rainfallState.month
+        )
+        .sort((a, b) => a.date - b.date);
+    const selectedDay = monthRows.find(d => d.date.getTime() === selectedRainfallDate);
+    if (!selectedDay) {
+        panel.hidden = true;
+        summary.text("");
+        return;
+    }
+
+    panel.hidden = false;
+    const durationText = Number.isFinite(selectedDay.precipitationHours)
+        ? `${d3.format(".1f")(selectedDay.precipitationHours)} hours`
+        : "not available";
+    const rateText = Number.isFinite(selectedDay.precipitationHours) && selectedDay.precipitationHours > 0
+        ? `${d3.format(",.1f")(selectedDay.precipitation / selectedDay.precipitationHours)} mm per rain hour`
+        : "not available";
+    summary.text(`${d3.timeFormat("%A, %d %B %Y")(selectedDay.date)}: ${d3.format(",.1f")(selectedDay.precipitation)} mm over ${durationText}; average rate ${rateText}.`);
+
+    const plotRows = monthRows.filter(d =>
+        Number.isFinite(d.precipitation) && Number.isFinite(d.precipitationHours)
+    );
+    if (plotRows.length === 0) {
+        container.append("p").text("No rainfall duration observations are available for this month.");
+        return;
+    }
+
+    // Draw the selected point last so it remains visible when days overlap at zero.
+    const orderedRows = [...plotRows].sort((a, b) =>
+        Number(a.date.getTime() === selectedRainfallDate) - Number(b.date.getTime() === selectedRainfallDate)
+    );
+    const margin = { top: 20, right: 30, bottom: 60, left: 70 };
+    const outerWidth = 850;
+    const outerHeight = 330;
+    const width = outerWidth - margin.left - margin.right;
+    const height = outerHeight - margin.top - margin.bottom;
+    const cityColor = rainfallCityColors[rainfallState.city] || "#0284C7";
+    const x = d3.scaleLinear()
+        .domain([0, d3.max(plotRows, d => d.precipitation) || 1])
+        .nice()
+        .range([0, width]);
+    const y = d3.scaleLinear()
+        .domain([0, 24])
+        .range([height, 0]);
+    const svg = container.append("svg")
+        .attr("width", outerWidth)
+        .attr("height", outerHeight)
+        .attr("viewBox", `0 0 ${outerWidth} ${outerHeight}`)
+        .attr("role", "img")
+        .attr("aria-label", `Daily rainfall amount and duration for ${rainfallState.city} in ${d3.timeFormat("%B %Y")(selectedDay.date)}`)
+        .style("opacity", 0);
+    const chart = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+    svg.transition().duration(rainfallAnimationDuration(220)).style("opacity", 1);
+
+    chart.append("g")
+        .selectAll("line")
+        .data(y.ticks(6))
+        .join("line")
+        .attr("x1", 0)
+        .attr("x2", width)
+        .attr("y1", d => y(d))
+        .attr("y2", d => y(d))
+        .attr("stroke", "#e2e8f0")
+        .attr("stroke-dasharray", "4,4");
+    chart.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(7));
+    chart.append("g")
+        .attr("class", "axis")
+        .call(d3.axisLeft(y).ticks(6).tickFormat(d => `${d}h`));
+    chart.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + 42)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#64748b")
+        .attr("font-size", "12px")
+        .text("Daily precipitation (mm)");
+    chart.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", -50)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#64748b")
+        .attr("font-size", "12px")
+        .text("Rain duration (hours)");
+
+    chart.selectAll(".rainfall-duration-point")
+        .data(orderedRows, d => d.dayStr)
+        .join("circle")
+        .attr("class", d => d.date.getTime() === selectedRainfallDate
+            ? "rainfall-duration-point is-selected"
+            : "rainfall-duration-point")
+        .attr("cx", d => x(d.precipitation))
+        .attr("cy", d => y(d.precipitationHours))
+        .attr("r", d => d.date.getTime() === selectedRainfallDate ? 7 : 4)
+        .attr("fill", cityColor)
+        .attr("fill-opacity", d => d.date.getTime() === selectedRainfallDate ? 1 : 0.38)
+        .attr("stroke", d => d.date.getTime() === selectedRainfallDate ? "#0f172a" : "none")
+        .attr("stroke-width", d => d.date.getTime() === selectedRainfallDate ? 2 : 0)
+        .attr("tabindex", 0)
+        .attr("role", "button")
+        .attr("aria-describedby", "rainfall-tooltip")
+        .attr("aria-label", d => `${d3.timeFormat("%A, %d %B %Y")(d.date)}: ${d3.format(",.1f")(d.precipitation)} mm over ${d3.format(".1f")(d.precipitationHours)} rain hours. Activate to select this day.`)
+        .on("pointerenter", (event, d) => showRainfallDurationTooltip(event, d))
+        .on("pointermove", event => positionRainfallTooltip(event))
+        .on("pointerleave", hideRainfallTooltip)
+        .on("focus", (event, d) => showRainfallDurationTooltip(event, d))
+        .on("blur", hideRainfallTooltip)
+        .on("click", (event, d) => selectRainfallDurationDay(d.date))
+        .on("keydown", (event, d) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                selectRainfallDurationDay(d.date);
+            }
+        });
+}
+
+function showRainfallDurationTooltip(event, day) {
+    const tooltip = getRainfallTooltip();
+    const hours = Number.isFinite(day.precipitationHours)
+        ? `${d3.format(".1f")(day.precipitationHours)} hours`
+        : "not available";
+    const rate = Number.isFinite(day.precipitationHours) && day.precipitationHours > 0
+        ? `${d3.format(",.1f")(day.precipitation / day.precipitationHours)} mm per rain hour`
+        : "not available";
+
+    tooltip.interrupt()
+        .html(`<strong>${d3.timeFormat("%A, %d %B %Y")(day.date)}</strong><br>Rainfall: <strong>${d3.format(",.1f")(day.precipitation)} mm</strong><br>Rain duration: ${hours}<br>Average rate: ${rate}`)
+        .attr("aria-hidden", "false");
+    positionRainfallTooltip(event);
+    tooltip.transition().duration(rainfallAnimationDuration(140)).style("opacity", 0.96);
 }
 
 // Draw a calendar heatmap for daily rainfall in a selected city and period.
 function drawCalendarHeatmap() {
     const container = d3.select("#rainfall-heatmap");
     container.selectAll("*").remove();
+    const calendarLayout = document.querySelector(".rainfall-calendar-layout");
+    if (calendarLayout) {
+        calendarLayout.classList.toggle("detail-below", rainfallState.level === "month");
+    }
 
     const detail = document.getElementById("rainfall-detail");
     if (detail) detail.hidden = true;

@@ -184,6 +184,11 @@
     stroke-linejoin: round;
 }
 
+.rainfall-bar.is-selected {
+    stroke: #0f172a;
+    stroke-width: 2px;
+}
+
 .rainfall-hit-area {
     fill: transparent;
     cursor: pointer;
@@ -208,10 +213,113 @@
     text-align: center;
 }
 
+.rainfall-calendar-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+#rainfall-heatmap {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+#rainfall-heatmap svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+#rainfall-detail {
+    box-sizing: border-box;
+    flex: 0 0 280px;
+    padding: 14px 16px;
+    border-left: 3px solid #0284C7;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+}
+
+#rainfall-detail h4 {
+    margin: 0 0 14px;
+    color: #1e293b;
+    font-size: 16px;
+}
+
+#rainfall-detail p {
+    margin: 0 0 11px;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.rainfall-calendar-layout.detail-below {
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rainfall-calendar-layout.detail-below #rainfall-heatmap {
+    width: 100%;
+}
+
+.rainfall-calendar-layout.detail-below #rainfall-detail {
+    flex: 0 1 auto;
+    width: 100%;
+    border-top: 3px solid #0284C7;
+    border-left: 0;
+}
+
 .rainfall-tooltip {
     z-index: 1000;
     max-width: 240px;
     line-height: 1.5;
+}
+
+.rainfall-duration-breakdown {
+    margin: 24px 10px;
+    padding: 18px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.rainfall-duration-breakdown h3 {
+    margin: 0 0 8px;
+    color: #2c3e50;
+    font-size: 16px;
+    text-align: center;
+}
+
+.rainfall-duration-breakdown > p {
+    max-width: 760px;
+    margin: 8px auto;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.rainfall-duration-summary {
+    color: #334155 !important;
+    font-weight: 600;
+}
+
+.rainfall-duration-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.rainfall-duration-point {
+    cursor: pointer;
+    transition: fill-opacity 140ms ease, r 140ms ease;
+}
+
+.rainfall-duration-point:hover,
+.rainfall-duration-point:focus-visible {
+    stroke: #0f172a;
+    stroke-width: 2px;
+    outline: none;
 }
 
 .tooltip-period {
@@ -279,8 +387,26 @@
     cursor: default;
 }
 
+@media (max-width: 760px) {
+    .rainfall-calendar-layout {
+        flex-direction: column;
+    }
+
+    #rainfall-heatmap {
+        width: 100%;
+    }
+
+    #rainfall-detail {
+        flex: 1 1 auto;
+        width: 100%;
+        border-top: 3px solid #0284C7;
+        border-left: 0;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .rainfall-bar,
+    .rainfall-duration-point,
     .precipitation-line,
     .humidity-line,
     #rainfall-heatmap .rainfall-day {

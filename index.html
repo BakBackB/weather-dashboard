@@ -71,10 +71,18 @@
             </div>
             <div id="rainfall-chart"></div>
 
-            <h3>Daily Rainfall Calendar</h3>
-            <div id="rainfall-heatmap"></div>
+            <section id="rainfall-duration-breakdown" class="rainfall-duration-breakdown" hidden>
+                <h3>Daily Rainfall Amount vs. Duration</h3>
+                <p>Each point is one day in the selected month. Farther right means more rainfall; higher means more hours of rain. High rainfall over few hours suggests a brief, intense event; moderate rainfall over many hours suggests persistent rain. The selected day is highlighted.</p>
+                <p id="rainfall-duration-summary" class="rainfall-duration-summary"></p>
+                <div id="rainfall-duration-chart" class="rainfall-duration-chart"></div>
+            </section>
 
-            <aside id="rainfall-detail" hidden></aside>
+            <h3>Daily Rainfall Calendar</h3>
+            <div class="rainfall-calendar-layout">
+                <div id="rainfall-heatmap"></div>
+                <aside id="rainfall-detail" hidden></aside>
+            </div>
 
             <h3 class="extreme-chart-title">Synchronized Precipitation–Humidity Trend</h3>
             <p class="chart-description">Color identifies city. Solid lines show precipitation (mm); dashed lines show humidity (%). 
