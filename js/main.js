@@ -839,12 +839,14 @@ function drawPrecipitationHumidityChart() {
     const container = d3.select("#precipitation-humidity-chart");
     container.selectAll("*").remove();
 
+    const isDailyMonth = rainfallState.level === "day" && Number.isInteger(rainfallState.month);
     const cities = rainfallState.level === "year"
         ? rainfallCities.filter(city => rainfallSelectedCities.has(city))
         : rainfallState.city ? [rainfallState.city] : [];
     const scopedRows = rawParsedWeather.filter(d =>
         cities.includes(d.city) &&
-        (!rainfallState.year || d.date.getFullYear() === rainfallState.year)
+        (!rainfallState.year || d.date.getFullYear() === rainfallState.year) &&
+        (!isDailyMonth || d.date.getMonth() + 1 === rainfallState.month)
     );
 
     if (cities.length === 0 || scopedRows.length === 0) {
@@ -854,48 +856,63 @@ function drawPrecipitationHumidityChart() {
         return;
     }
 
-    // First compute each year's monthly rainfall total and daily humidity mean.
-    const monthlyByYear = d3.rollups(
-        scopedRows,
-        rows => ({
-            precipitation: d3.sum(rows, d => d.precipitation),
-            humidity: d3.mean(rows, d => d.relativeHumidityMean)
-        }),
-        d => d.city,
-        d => d.date.getFullYear(),
-        d => d.date.getMonth()
-    );
+    let data;
+    if (isDailyMonth) {
+        data = scopedRows.map(d => ({
+            city: d.city,
+            month: d.date.getMonth(),
+            date: d.date,
+            positionDate: new Date(d.date.getFullYear(), d.date.getMonth(), d.date.getDate(), 12),
+            precipitation: d.precipitation,
+            humidity: d.relativeHumidityMean
+        })).sort((a, b) => a.date - b.date);
+    } else {
+        // First compute each year's monthly rainfall total and daily humidity mean.
+        const monthlyByYear = d3.rollups(
+            scopedRows,
+            rows => ({
+                precipitation: d3.sum(rows, d => d.precipitation),
+                humidity: d3.mean(rows, d => d.relativeHumidityMean)
+            }),
+            d => d.city,
+            d => d.date.getFullYear(),
+            d => d.date.getMonth()
+        );
 
-    const observations = [];
-    for (const [city, years] of monthlyByYear) {
-        for (const [year, months] of years) {
-            for (const [month, values] of months) {
-                observations.push({ city, year, month, ...values });
+        const observations = [];
+        for (const [city, years] of monthlyByYear) {
+            for (const [year, months] of years) {
+                for (const [month, values] of months) {
+                    observations.push({ city, year, month, ...values });
+                }
             }
         }
-    }
 
-    // Average those monthly observations across years for the annual overview.
-    const data = d3.rollups(
-        observations,
-        rows => ({
-            precipitation: d3.mean(rows, d => d.precipitation),
-            humidity: d3.mean(rows, d => d.humidity)
-        }),
-        d => d.city,
-        d => d.month
-    ).flatMap(([city, months]) => months.map(([month, values]) => ({
-        city,
-        month,
-        date: new Date(2000, month, 15),
-        precipitation: values.precipitation,
-        humidity: values.humidity
-    }))).sort((a, b) => a.month - b.month);
+        // Average those monthly observations across years for the annual overview.
+        data = d3.rollups(
+            observations,
+            rows => ({
+                precipitation: d3.mean(rows, d => d.precipitation),
+                humidity: d3.mean(rows, d => d.humidity)
+            }),
+            d => d.city,
+            d => d.month
+        ).flatMap(([city, months]) => months.map(([month, values]) => ({
+            city,
+            month,
+            date: new Date(2000, month, 15),
+            positionDate: new Date(2000, month, 15),
+            precipitation: values.precipitation,
+            humidity: values.humidity
+        }))).sort((a, b) => a.month - b.month);
+    }
 
     if (data.length === 0) {
         container.append("p")
             .attr("class", "rainfall-empty")
-            .text("No monthly precipitation and humidity data available.");
+            .text(isDailyMonth
+                ? `No daily precipitation and humidity data available for ${d3.timeFormat("%B %Y")(new Date(rainfallState.year, rainfallState.month - 1, 1))}.`
+                : "No monthly precipitation and humidity data available.");
         return;
     }
 
@@ -908,8 +925,16 @@ function drawPrecipitationHumidityChart() {
         .domain(rainfallCities)
         .range(rainfallCities.map(city => rainfallCityColors[city]));
     const maxPrecipitation = d3.max(data, d => d.precipitation) || 1;
+    const dailyMonthStart = isDailyMonth
+        ? new Date(rainfallState.year, rainfallState.month - 1, 1)
+        : null;
+    const dailyMonthEnd = isDailyMonth
+        ? new Date(rainfallState.year, rainfallState.month, 1)
+        : null;
     const x = d3.scaleTime()
-        .domain([new Date(2000, 0, 1), new Date(2001, 0, 1)])
+        .domain(isDailyMonth
+            ? [dailyMonthStart, dailyMonthEnd]
+            : [new Date(2000, 0, 1), new Date(2001, 0, 1)])
         .range([0, width]);
     const yPrecipitation = d3.scaleLinear()
         .domain([0, maxPrecipitation])
@@ -918,14 +943,21 @@ function drawPrecipitationHumidityChart() {
     const yHumidity = d3.scaleLinear()
         .domain([0, 100])
         .range([height, 0]);
-    const months = d3.range(12).map(month => new Date(2000, month, 1));
+    // Center each aggregate on its label; daily points use the center of each date.
+    const xTicks = isDailyMonth
+        ? d3.timeDay.range(dailyMonthStart, dailyMonthEnd, 5)
+            .map(day => new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12))
+        : d3.range(12).map(month => new Date(2000, month, 15));
+    const xTickFormat = isDailyMonth ? d3.timeFormat("%d") : d3.timeFormat("%b");
 
     const svg = container.append("svg")
         .attr("width", outerWidth)
         .attr("height", outerHeight)
         .attr("viewBox", `0 0 ${outerWidth} ${outerHeight}`)
         .attr("role", "img")
-        .attr("aria-label", "Monthly precipitation and mean relative humidity trend")
+        .attr("aria-label", isDailyMonth
+            ? `Daily precipitation and mean relative humidity trend for ${d3.timeFormat("%B %Y")(dailyMonthStart)}`
+            : "Monthly precipitation and mean relative humidity trend")
         .style("opacity", 0);
     const chart = svg.append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -945,7 +977,7 @@ function drawPrecipitationHumidityChart() {
     chart.append("g")
         .attr("class", "axis")
         .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(x).tickValues(months).tickFormat(d3.timeFormat("%b")));
+        .call(d3.axisBottom(x).tickValues(xTicks).tickFormat(xTickFormat));
     chart.append("g")
         .attr("class", "axis")
         .call(d3.axisLeft(yPrecipitation).ticks(6));
@@ -961,7 +993,9 @@ function drawPrecipitationHumidityChart() {
         .attr("text-anchor", "middle")
         .attr("fill", "#64748b")
         .attr("font-size", "12px")
-        .text(rainfallState.year ? "Monthly precipitation (mm)" : "Mean monthly precipitation (mm)");
+        .text(isDailyMonth
+            ? "Daily precipitation (mm)"
+            : rainfallState.year ? "Monthly precipitation (mm)" : "Mean monthly precipitation (mm)");
     chart.append("text")
         .attr("transform", "rotate(90)")
         .attr("x", height / 2)
@@ -976,16 +1010,16 @@ function drawPrecipitationHumidityChart() {
         .attr("text-anchor", "middle")
         .attr("fill", "#64748b")
         .attr("font-size", "12px")
-        .text("Month of year");
+        .text(isDailyMonth ? "Day of month" : "Month of year");
 
     const precipitationLine = d3.line()
         .defined(d => Number.isFinite(d.precipitation))
-        .x(d => x(d.date))
+        .x(d => x(d.positionDate))
         .y(d => yPrecipitation(d.precipitation))
         .curve(d3.curveMonotoneX);
     const humidityLine = d3.line()
         .defined(d => Number.isFinite(d.humidity))
-        .x(d => x(d.date))
+        .x(d => x(d.positionDate))
         .y(d => yHumidity(d.humidity))
         .curve(d3.curveMonotoneX);
 
@@ -1024,31 +1058,47 @@ function drawPrecipitationHumidityChart() {
         .attr("opacity", 0)
         .style("pointer-events", "none");
 
-    // One hover target per month reports both measures for every visible city.
-    const monthlyTooltipData = d3.range(12).map(month => ({
-        month,
-        date: new Date(2000, month, 15),
-        cities: cities.map(city => data.find(d => d.city === city && d.month === month)).filter(Boolean)
-    }));
+    // One hover target per day or month reports both measures for visible cities.
+    const tooltipData = isDailyMonth
+        ? d3.groups(data, d => d.date.getTime()).map(([, cityRows]) => ({
+            date: cityRows[0].date,
+            positionDate: cityRows[0].positionDate,
+            cities: cityRows
+        }))
+        : d3.range(12).map(month => ({
+            month,
+            date: new Date(2000, month, 15),
+            positionDate: new Date(2000, month, 15),
+            cities: cities.map(city => data.find(d => d.city === city && d.month === month)).filter(Boolean)
+        }));
     chart.selectAll(".precipitation-humidity-hit")
-        .data(monthlyTooltipData)
+        .data(tooltipData)
         .join("rect")
         .attr("class", "precipitation-humidity-hit")
-        .attr("x", d => x(new Date(2000, d.month, 1)))
+        .attr("x", d => isDailyMonth
+            ? x(new Date(d.date.getFullYear(), d.date.getMonth(), d.date.getDate()))
+            : x(new Date(2000, d.month, 1)))
         .attr("y", 0)
-        .attr("width", d => x(new Date(2000, d.month + 1, 1)) - x(new Date(2000, d.month, 1)))
+        .attr("width", d => isDailyMonth
+            ? x(new Date(d.date.getFullYear(), d.date.getMonth(), d.date.getDate() + 1)) - x(new Date(d.date.getFullYear(), d.date.getMonth(), d.date.getDate()))
+            : x(new Date(2000, d.month + 1, 1)) - x(new Date(2000, d.month, 1)))
         .attr("height", height)
         .on("pointerenter", (event, d) => {
             const tooltip = getRainfallTooltip();
             const rows = d.cities.map(cityData =>
                 `<span style="color:${color(cityData.city)}">● ${cityData.city}</span>: ${d3.format(",.1f")(cityData.precipitation)} mm, ${Number.isFinite(cityData.humidity) ? `${d3.format(".1f")(cityData.humidity)}% RH` : "humidity unavailable"}`
             );
+            const periodLabel = isDailyMonth
+                ? d3.timeFormat("%A, %B %d, %Y")(d.date)
+                : rainfallState.year
+                    ? `${d3.timeFormat("%B")(d.date)}, ${rainfallState.year}`
+                    : d3.timeFormat("%B")(d.date);
             tooltip.interrupt()
-                .html(`<strong>${d3.timeFormat("%B")(d.date)}</strong><br>${rows.join("<br>")}`)
+                .html(`<strong>${periodLabel}</strong><br>${rows.join("<br>")}`)
                 .attr("aria-hidden", "false");
             positionRainfallTooltip(event);
             tooltip.transition().duration(rainfallAnimationDuration(140)).style("opacity", 0.96);
-            hoverLine.attr("x1", x(d.date)).attr("x2", x(d.date))
+            hoverLine.attr("x1", x(d.positionDate)).attr("x2", x(d.positionDate))
                 .transition().duration(rainfallAnimationDuration(100)).attr("opacity", 0.75);
         })
         .on("pointermove", event => positionRainfallTooltip(event))
