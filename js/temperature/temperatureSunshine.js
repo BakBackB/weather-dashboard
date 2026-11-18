@@ -22,19 +22,23 @@ function drawTemperatureSunshine() {
         const inSeason = d => filters.quarter.months.includes(d.date.getMonth());
         const inYear = d => state.view === "year" || filters.year === null || d.date.getFullYear() === filters.year;
         const keyOf = state.view === "year" ? d => d.date.getFullYear() : d => d.date.getMonth();
-        return d3.rollups(rawParsedWeather.filter(d => inSeason(d) && inYear(d)),
-            v => ({ temp: d3.mean(v, d => d.tempMean), sunshine: d3.mean(v, d => d.sunshineHours) }),
-            d => d.city, keyOf)
-            .flatMap(([city, points]) => points.map(([key, values]) => ({ city, key, ...values })))
+        return summarizeGroups(rawParsedWeather.filter(d => inSeason(d) && inYear(d)), d => d.city, keyOf,
+            (rows, city, key) => ({
+                city,
+                key,
+                temp: average(rows, d => d.tempMean),
+                sunshine: average(rows, d => d.sunshineHours)
+            }))
             .sort((a, b) => a.key - b.key);
     }
 
     // Fixed axis ranges for each view, over every year and season, so the axes stay still when the year or
     // season changes and a transition only shows changes in the data. Monthly values of single years cover the
     // 10-year averages; yearly values are computed for every season.
-    const meansOf = (rows, keyOf) => d3.rollups(rows,
-        v => ({ temp: d3.mean(v, d => d.tempMean), sunshine: d3.mean(v, d => d.sunshineHours) }),
-        d => d.city, keyOf).flatMap(([, groups]) => groups.map(([, values]) => values));
+    const meansOf = (rows, keyOf) => summarizeGroups(rows, d => d.city, keyOf, group => ({
+        temp: average(group, d => d.tempMean),
+        sunshine: average(group, d => d.sunshineHours)
+    }));
     const fixedRange = values => ({
         sunshine: [0, d3.max(values, d => d.sunshine)],
         temp: d3.extent(values, d => d.temp)

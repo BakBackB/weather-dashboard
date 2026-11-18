@@ -16,11 +16,11 @@ function drawTemperatureElNino() {
         const contextHeight = height - contextTop;
 
         // 3-month centred mean, matching the 3-month seasons of the El Niño index.
-        const series = d3.groups(monthlyAnomalies(), d => d.city).map(([city, months]) => ({
+        const series = Array.from(d3.group(monthlyAnomalies(), d => d.city), ([city, months]) => ({
             city,
             values: months.map((d, i) => ({
                 date: d.date,
-                anomaly: d3.mean(months.slice(Math.max(0, i - 1), i + 2), m => m.anomaly)
+                anomaly: average(months.slice(Math.max(0, i - 1), i + 2), m => m.anomaly)
             }))
         }));
 
@@ -139,10 +139,13 @@ function drawTemperatureElNino() {
             .attr("x", width).attr("y", -12)
             .attr("text-anchor", "end")
             .attr("font-size", "11px").attr("fill", "#475569");
+        // As in Lab 06: x.invert turns the pointer position into a date, the bisector finds the closest month.
+        const bisectDate = d3.bisector(d => d.date).center;
         plot.on("mousemove", event => {
-            const date = d3.timeMonth.round(x.invert(d3.pointer(event, svg.node())[0]));
-            const at = series.map(s => ({ city: s.city, d: s.values.find(v => +v.date === +date) })).filter(v => v.d);
-            if (!at.length) return;
+            const [px] = d3.pointer(event, svg.node());
+            const i = bisectDate(series[0].values, x.invert(Math.max(0, Math.min(width, px))));
+            const date = series[0].values[i].date;
+            const at = series.map(s => ({ city: s.city, d: s.values[i] }));
             const period = periods.find(p => p.start <= date && date < p.end);
             const checked = Array.from(document.querySelectorAll("#cityFilters input:checked")).map(cb => cb.value);
             guide.attr("x1", x(date)).attr("x2", x(date)).attr("display", null);
