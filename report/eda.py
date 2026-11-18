@@ -87,7 +87,7 @@ for c in CITIES:
         log("  %-17s %-5s %+.2f C/decade p=%.3f  tau=%+.2f p=%.3f" % (c, v, r.slope * 10, r.pvalue, tau.statistic, tau.pvalue))
 
 # El Niño: monthly anomalies vs. NOAA Oceanic Niño Index (ONI)
-oni = pd.read_csv(ROOT.parent / "data" / "oni.csv")
+oni = pd.read_csv(ROOT.parent / "data" / "noaa_oceanic_nino_index.csv")
 oni["date"] = pd.to_datetime(dict(year=oni.year, month=oni.month, day=1))
 oni = oni.set_index("date")["oni"]
 

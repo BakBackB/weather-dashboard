@@ -43,7 +43,14 @@
                 </div>
                 <div class="controls temperature-filter-bar">
                     <label class="view-label" for="temperatureYear">Year:</label>
-                    <select id="temperatureYear" class="temperature-select"></select>
+                    <button id="temperatureAllYears" class="temperature-season" type="button">All years</button>
+                    <div id="temperatureYearSlider" class="temperature-year-slider">
+                        <input type="range" id="temperatureYear" step="1">
+                        <div id="temperatureYearTicks" class="temperature-year-ticks"></div>
+                    </div>
+                    <output id="temperatureYearValue" class="temperature-year-value" for="temperatureYear"></output>
+                </div>
+                <div class="controls temperature-filter-bar">
                     <span class="view-label">Season:</span>
                     <div id="temperatureSeasonFilter" class="temperature-season-filter" role="group" aria-label="Season filter"></div>
                 </div>
@@ -130,8 +137,10 @@
     <script src="js/utils.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/dataLoader.js"></script>
-    <script src="js/temperature.js"></script>
-    <script src="js/temperatureInsights.js"></script>
+    <script src="js/temperature/temperatureShared.js"></script>
+    <script src="js/temperature/temperatureTypicalYear.js"></script>
+    <script src="js/temperature/temperatureSunshine.js"></script>
+    <script src="js/temperature/temperatureElNino.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
