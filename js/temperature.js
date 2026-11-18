@@ -1,4 +1,4 @@
-// Temperature charts (RQ1): shared helpers, the temperature–sunshine chart and the humidity–daily range chart.
+// Temperature charts (RQ1): shared helpers and the temperature–sunshine chart.
 // The Key Insights charts are in temperatureInsights.js.
 
 const TEMP_CITIES = ["Hanoi", "Da Nang", "Ho Chi Minh City"];
@@ -44,6 +44,9 @@ function createTooltip() {
 }
 
 // Creates (or recreates) an 850px wide SVG and returns the inner group and its size.
+// Length of the transitions when a filter changes; none if the user prefers reduced motion.
+const TEMP_DURATION = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450;
+
 function createSvg(container, height, margin) {
     d3.select(container).selectAll("*").remove();
     const svg = d3.select(container).append("svg")
@@ -209,6 +212,8 @@ function drawTemperatureComparison() {
             .text(d => d);
     }
 
+    // A new year or season updates the existing chart with a transition (bars grow, line moves);
+    // a new view or new cities draw it new.
     function render() {
         viewSelect.value = state.view;
 
@@ -219,7 +224,15 @@ function drawTemperatureComparison() {
         const keys = state.view === "year" ? years : filters.quarter.months;
 
         const margin = { top: 30, right: 60, bottom: 36, left: 60 };
-        const { svg, width, height } = createSvg("#temperature-comparison-chart", 400, margin);
+        const width = 850 - margin.left - margin.right;
+        const height = 400 - margin.top - margin.bottom;
+        const structure = `${state.view}|${cities.join(",")}`;
+        let svg = d3.select("#temperature-comparison-chart").select(".temp-cmp-plot");
+        const animate = !svg.empty() && svg.attr("data-structure") === structure;
+        const sameKeys = animate && svg.attr("data-keys") === keys.join(",");
+        if (!animate) svg = buildChart(cities, margin, width, height).attr("data-structure", structure);
+        svg.attr("data-keys", keys.join(","));
+        const move = selection => animate ? selection.transition().duration(TEMP_DURATION) : selection;
 
         const panel = d3.scaleBand().domain(cities).range([0, width]).paddingInner(0.08);
         const x = d3.scaleBand().domain(keys).range([0, panel.bandwidth()]).padding(0.25);
@@ -232,75 +245,75 @@ function drawTemperatureComparison() {
         const tickFormat = state.view === "year" ? (d => `'${String(d).slice(2)}`)
             : keys.length < 12 ? (m => MONTH_LABELS[m]) : (m => MONTH_LABELS[m][0]);
 
-        addGrid(svg, yBars, width);
-        svg.append("g").attr("class", "axis").call(d3.axisLeft(yBars).ticks(6));
-        svg.append("g").attr("class", "axis")
-            .attr("transform", `translate(${width},0)`)
-            .call(d3.axisRight(yTemp).ticks(6));
-        addAxisLabel(svg, "Sunshine (h/day) · bars", -height / 2, -45, true);
-        svg.append("text")
-            .attr("transform", "rotate(90)")
-            .attr("x", height / 2).attr("y", -width - 45)
-            .attr("text-anchor", "middle")
-            .attr("fill", "#64748b").attr("font-size", "12px")
-            .text("Mean Temperature (°C) · line");
+        const grid = svg.select(".temp-cmp-grid").selectAll("line")
+            .data(yBars.ticks(6), d => d)
+            .join(enter => enter.append("line")
+                .attr("x1", 0).attr("x2", width)
+                .attr("y1", d => yBars(d)).attr("y2", d => yBars(d))
+                .attr("stroke", "#e2e8f0")
+                .attr("stroke-dasharray", "4,4"));
+        move(grid).attr("y1", d => yBars(d)).attr("y2", d => yBars(d));
+        move(svg.select(".temp-cmp-left-axis")).call(d3.axisLeft(yBars).ticks(6));
+        move(svg.select(".temp-cmp-right-axis")).call(d3.axisRight(yTemp).ticks(6));
 
         const panels = svg.selectAll(".temp-city")
-            .data(cities.map(city => ({ city, values: points.filter(d => d.city === city) }))).join("g")
-            .attr("class", "temp-city")
-            .attr("data-city", d => d.city)
-            .attr("transform", d => `translate(${panel(d.city)},0)`);
+            .data(cities.map(city => ({ city, values: points.filter(d => d.city === city) })), d => d.city);
 
         // Panel title with the correlation between temperature and sunshine.
-        panels.append("text")
-            .attr("x", panel.bandwidth() / 2).attr("y", -14)
-            .attr("text-anchor", "middle")
-            .attr("fill", d => color(d.city))
-            .attr("font-size", "13px").attr("font-weight", 600)
+        panels.select(".temp-cmp-title")
             .text(d => d.values.length > 2 ? `${d.city} (r = ${pearson(d.values).toFixed(2)})` : d.city);
-
-        panels.append("g").attr("class", "axis")
-            .attr("transform", `translate(0,${height})`)
-            .call(d3.axisBottom(x).tickFormat(tickFormat));
+        move(panels.select(".temp-cmp-x-axis")).call(d3.axisBottom(x).tickFormat(tickFormat));
 
         // Column behind the hovered / selected month, in every panel.
-        const hoverColumn = panels.append("rect")
-            .attr("width", x.step()).attr("height", height)
-            .attr("fill", "#f1f5f9")
-            .style("display", "none");
-        panels.append("rect")
-            .attr("width", x.step()).attr("height", height)
-            .attr("fill", "#e2e8f0")
-            .attr("x", state.selected === null ? 0 : columnX(state.selected))
+        const hoverColumn = panels.select(".temp-cmp-hover-column").attr("width", x.step());
+        panels.select(".temp-cmp-selected-column")
+            .attr("width", x.step())
+            .attr("x", state.selected === null || !keys.includes(state.selected) ? 0 : columnX(state.selected))
             .style("display", state.selected === null || !keys.includes(state.selected) ? "none" : null);
 
-        panels.selectAll(".temp-comparison-bar")
-            .data(d => d.values).join("rect")
-            .attr("class", "temp-comparison-bar")
+        // Bars are matched by month (or year): new ones grow from the axis, removed ones shrink.
+        const bars = panels.select(".temp-cmp-bars").selectAll("rect")
+            .data(d => d.values, d => d.key)
+            .join(
+                enter => enter.append("rect")
+                    .attr("x", d => x(d.key)).attr("width", x.bandwidth())
+                    .attr("y", height).attr("height", 0)
+                    .attr("fill", d => color(d.city))
+                    .attr("fill-opacity", 0.45),
+                update => update,
+                exit => animate
+                    ? exit.transition().duration(TEMP_DURATION).attr("y", height).attr("height", 0).remove()
+                    : exit.remove());
+        move(bars)
             .attr("x", d => x(d.key))
-            .attr("y", d => yBars(d.sunshine))
             .attr("width", x.bandwidth())
-            .attr("height", d => height - yBars(d.sunshine))
-            .attr("fill", d => color(d.city))
-            .attr("fill-opacity", 0.45);
+            .attr("y", d => yBars(d.sunshine))
+            .attr("height", d => height - yBars(d.sunshine));
 
+        // The line moves when the months stay the same; with other months it fades in.
         const line = d3.line().x(d => x(d.key) + x.bandwidth() / 2).y(d => yTemp(d.temp)).curve(d3.curveMonotoneX);
-        panels.append("path")
-            .attr("class", "line")
-            .attr("d", d => line(d.values))
-            .attr("stroke", d => color(d.city));
-        panels.selectAll(".temp-comparison-dot")
-            .data(d => d.values).join("circle")
-            .attr("class", "temp-comparison-dot")
+        const path = panels.select(".temp-cmp-line");
+        if (sameKeys) move(path).attr("d", d => line(d.values));
+        else {
+            path.attr("d", d => line(d.values)).attr("opacity", animate ? 0 : 1);
+            move(path).attr("opacity", 1);
+        }
+        const dots = panels.select(".temp-cmp-dots").selectAll("circle")
+            .data(d => d.values, d => d.key)
+            .join(enter => enter.append("circle")
+                .attr("cx", d => x(d.key) + x.bandwidth() / 2)
+                .attr("cy", d => yTemp(d.temp))
+                .attr("r", animate ? 0 : 3.5)
+                .attr("fill", d => color(d.city)));
+        move(dots)
             .attr("cx", d => x(d.key) + x.bandwidth() / 2)
             .attr("cy", d => yTemp(d.temp))
-            .attr("r", 3.5)
-            .attr("fill", d => color(d.city));
+            .attr("r", 3.5);
 
         // Invisible column per month (or year) for hovering and clicking.
-        panels.selectAll(".temp-comparison-hover")
-            .data(d => d.values).join("rect")
-            .attr("class", "temp-comparison-hover")
+        panels.select(".temp-cmp-hover").selectAll("rect")
+            .data(d => d.values, d => d.key)
+            .join("rect")
             .attr("x", d => columnX(d.key))
             .attr("width", x.step())
             .attr("height", height)
@@ -331,6 +344,52 @@ function drawTemperatureComparison() {
             });
     }
 
+    // The parts of the chart that only change with the view or the checked cities.
+    function buildChart(cities, margin, width, height) {
+        const { svg } = createSvg("#temperature-comparison-chart", 400, margin);
+        svg.classed("temp-cmp-plot", true);
+        const panel = d3.scaleBand().domain(cities).range([0, width]).paddingInner(0.08);
+
+        svg.append("g").attr("class", "temp-cmp-grid");
+        svg.append("g").attr("class", "axis temp-cmp-left-axis");
+        svg.append("g").attr("class", "axis temp-cmp-right-axis")
+            .attr("transform", `translate(${width},0)`);
+        addAxisLabel(svg, "Sunshine (h/day) · bars", -height / 2, -45, true);
+        svg.append("text")
+            .attr("transform", "rotate(90)")
+            .attr("x", height / 2).attr("y", -width - 45)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#64748b").attr("font-size", "12px")
+            .text("Mean Temperature (°C) · line");
+
+        const panels = svg.selectAll(".temp-city")
+            .data(cities.map(city => ({ city })), d => d.city).join("g")
+            .attr("class", "temp-city")
+            .attr("data-city", d => d.city)
+            .attr("transform", d => `translate(${panel(d.city)},0)`);
+        panels.append("text")
+            .attr("class", "temp-cmp-title")
+            .attr("x", panel.bandwidth() / 2).attr("y", -14)
+            .attr("text-anchor", "middle")
+            .attr("fill", d => color(d.city))
+            .attr("font-size", "13px").attr("font-weight", 600);
+        panels.append("g").attr("class", "axis temp-cmp-x-axis")
+            .attr("transform", `translate(0,${height})`);
+        panels.append("rect").attr("class", "temp-cmp-hover-column")
+            .attr("height", height)
+            .attr("fill", "#f1f5f9")
+            .style("display", "none");
+        panels.append("rect").attr("class", "temp-cmp-selected-column")
+            .attr("height", height)
+            .attr("fill", "#e2e8f0");
+        panels.append("g").attr("class", "temp-cmp-bars");
+        panels.append("path").attr("class", "line temp-cmp-line")
+            .attr("stroke", d => color(d.city));
+        panels.append("g").attr("class", "temp-cmp-dots");
+        panels.append("g").attr("class", "temp-cmp-hover");
+        return svg;
+    }
+
     viewSelect.addEventListener("change", () => {
         state.view = viewSelect.value;
         state.selected = null;
@@ -346,238 +405,6 @@ function drawTemperatureComparison() {
             applyTemperatureCityFilter();
             render();
         });
-    });
-
-    render();
-}
-
-// --- Humidity and daily temperature range: one panel per city ---
-// Small dots: single days. Large dots: monthly averages (labelled), showing the move from the dry to the wet season.
-// Humid air keeps the night warm and the day less hot, so humid days should have a small range.
-
-function drawHumidityRange() {
-    const tooltip = createTooltip();
-    const color = cityColorScale();
-    const format = v => v.toFixed(1);
-    const formatDay = d3.timeFormat("%d %b %Y");
-
-    const days = rawParsedWeather.map(d => ({
-        city: d.city,
-        date: d.date,
-        month: d.date.getMonth(),
-        humidity: d.humidity,
-        range: d.tempMax - d.tempMin,
-        temp: d.tempMean,
-        min: d.tempMin,
-        max: d.tempMax,
-        sunshine: d.sunshineHours
-    }));
-
-    // Axes cover all days, so panels and filters stay comparable; brushing zooms in.
-    const fullX = d3.extent(days, d => d.humidity);
-    const fullY = [0, d3.max(days, d => d.range)];
-    // Year and season come from the shared filter (temperatureFilters).
-    const state = { zoom: null, selected: null };
-    const filters = temperatureFilters;
-    const detail = d3.select("#temperature-humidity-detail");
-    initTemperatureFilters();
-
-    function showDetail() {
-        detail.selectAll("*").remove();
-        if (state.selected === null) return;
-
-        const rows = days.filter(d => +d.date === +state.selected);
-        detail.append("p").append("strong").text(d3.timeFormat("%A, %d %B %Y")(state.selected));
-        const table = detail.append("table").attr("class", "temperature-detail-table");
-        table.append("tr").selectAll("th")
-            .data(["City", "Humidity", "Daily range", "Min", "Max", "Mean", "Sunshine"]).join("th")
-            .text(d => d);
-        table.selectAll(".temp-detail-row")
-            .data(rows).join("tr")
-            .attr("class", "temp-detail-row")
-            .selectAll("td")
-            .data(d => [d.city, `${Math.round(d.humidity)}%`, `${format(d.range)}°C`, `${format(d.min)}°C`,
-                `${format(d.max)}°C`, `${format(d.temp)}°C`, `${format(d.sunshine)} h`])
-            .join("td")
-            .text(d => d);
-    }
-
-    function render() {
-        showDetail();
-
-        const cities = TEMP_CITIES.filter(city => document.querySelector(`#cityFilters input[value="${city}"]`).checked);
-        const shown = days.filter(d =>
-            filters.quarter.months.includes(d.month) && (filters.year === null || d.date.getFullYear() === filters.year));
-
-        const margin = { top: 30, right: 20, bottom: 50, left: 60 };
-        const { svg, width, height } = createSvg("#temperature-humidity-chart", 400, margin);
-
-        const panel = d3.scaleBand().domain(cities).range([0, width]).paddingInner(0.1);
-        const x = d3.scaleLinear().domain(state.zoom ? state.zoom.x : fullX).range([0, panel.bandwidth()]);
-        // The daily range is ratio data, so its axis starts at 0 (until the user zooms in).
-        const y = d3.scaleLinear().domain(state.zoom ? state.zoom.y : fullY).range([height, 0]);
-        if (!state.zoom) {
-            x.nice();
-            y.nice();
-        }
-
-        addGrid(svg, y, width);
-        svg.append("g").attr("class", "axis").call(d3.axisLeft(y));
-        addAxisLabel(svg, "Daily Range Tmax − Tmin (°C)", -height / 2, -45, true);
-        addAxisLabel(svg, "Mean Relative Humidity (%)", width / 2, height + 40);
-
-        svg.append("clipPath").attr("id", "temperature-humidity-clip")
-            .append("rect").attr("width", panel.bandwidth()).attr("height", height);
-
-        const panels = svg.selectAll(".temp-city")
-            .data(cities.map(city => {
-                const cityDays = shown.filter(d => d.city === city);
-                const months = d3.rollups(cityDays,
-                    v => ({ humidity: d3.mean(v, d => d.humidity), range: d3.mean(v, d => d.range) }),
-                    d => d.month)
-                    .map(([month, values]) => ({ city, month, ...values }));
-                return { city, days: cityDays, months };
-            })).join("g")
-            .attr("class", "temp-city")
-            .attr("data-city", d => d.city)
-            .attr("transform", d => `translate(${panel(d.city)},0)`);
-
-        panels.append("g").attr("class", "axis")
-            .attr("transform", `translate(0,${height})`)
-            .call(d3.axisBottom(x).ticks(5));
-
-        // Title with R² of the trend line: the share of the daily-range differences that humidity explains.
-        panels.append("text")
-            .attr("x", panel.bandwidth() / 2).attr("y", -14)
-            .attr("text-anchor", "middle")
-            .attr("fill", d => color(d.city))
-            .attr("font-size", "13px").attr("font-weight", 600)
-            .text(d => d.days.length > 2
-                ? `${d.city} (R² = ${(correlation(d.days, p => p.humidity, p => p.range) ** 2).toFixed(2)})`
-                : d.city);
-
-        const plots = panels.append("g").attr("clip-path", "url(#temperature-humidity-clip)");
-
-        // Daily points.
-        plots.selectAll(".temp-humidity-day")
-            .data(d => d.days).join("circle")
-            .attr("class", "temp-humidity-day")
-            .attr("cx", d => x(d.humidity))
-            .attr("cy", d => y(d.range))
-            .attr("r", 1.8)
-            .attr("fill", d => color(d.city))
-            .attr("opacity", 0.2);
-
-        // Least-squares trend line of the shown days.
-        plots.filter(d => d.days.length > 2).append("line")
-            .each(function(d) {
-                const mx = d3.mean(d.days, p => p.humidity);
-                const my = d3.mean(d.days, p => p.range);
-                const slope = d3.sum(d.days, p => (p.humidity - mx) * (p.range - my)) / d3.sum(d.days, p => (p.humidity - mx) ** 2);
-                const [x0, x1] = d3.extent(d.days, p => p.humidity);
-                d3.select(this)
-                    .attr("x1", x(x0)).attr("y1", y(my + slope * (x0 - mx)))
-                    .attr("x2", x(x1)).attr("y2", y(my + slope * (x1 - mx)));
-            })
-            .attr("stroke", "#1e293b").attr("stroke-width", 2).attr("stroke-dasharray", "5,3");
-
-        // Selected day.
-        plots.selectAll(".temp-humidity-selected")
-            .data(d => d.days.filter(p => state.selected && +p.date === +state.selected)).join("circle")
-            .attr("class", "temp-humidity-selected")
-            .attr("cx", d => x(d.humidity)).attr("cy", d => y(d.range))
-            .attr("r", 6)
-            .attr("fill", "none").attr("stroke", "#1e293b").attr("stroke-width", 2);
-
-        // Hover marker, moved by the overlay below.
-        const hoverMarker = plots.append("circle")
-            .attr("r", 5)
-            .attr("fill", "none").attr("stroke", "#1e293b").attr("stroke-width", 1.5)
-            .style("display", "none");
-
-        // Brush (drag to zoom), hover (nearest day) and click (select a day) share one overlay per panel.
-        const brush = d3.brush()
-            .extent([[0, 0], [panel.bandwidth(), height]])
-            .on("end", function({ selection, sourceEvent }) {
-                if (!sourceEvent) return;   // ignore moves made by code
-                if (selection) {
-                    const [[x0, y0], [x1, y1]] = selection;
-                    if (x1 - x0 > 5 && y1 - y0 > 5) {
-                        state.zoom = { x: [x.invert(x0), x.invert(x1)], y: [y.invert(y1), y.invert(y0)] };
-                        render();
-                    }
-                    return;
-                }
-                // A click without dragging selects the nearest day.
-                const day = nearestDay(this, sourceEvent);
-                if (day) {
-                    state.selected = day.date;
-                    render();
-                }
-            });
-
-        function nearestDay(overlay, event) {
-            const d = d3.select(overlay).datum();
-            const [mx, my] = d3.pointer(event, overlay);
-            const index = d.delaunay.find(mx, my);
-            const day = d.days[index];
-            return day && Math.hypot(x(day.humidity) - mx, y(day.range) - my) < 10 ? day : null;
-        }
-
-        panels.each(d => d.delaunay = d3.Delaunay.from(d.days, p => x(p.humidity), p => y(p.range)));
-
-        panels.append("g")
-            .call(brush)
-            .on("mousemove.tooltip", function(event) {
-                const day = nearestDay(this, event);
-                const marker = hoverMarker.filter(m => m.city === d3.select(this).datum().city);
-                if (!day) {
-                    marker.style("display", "none");
-                    tooltip.hide();
-                    return;
-                }
-                marker.style("display", null).attr("cx", x(day.humidity)).attr("cy", y(day.range));
-                tooltip.show(event, `<strong>${day.city}</strong> · ${formatDay(day.date)}<br/>` +
-                    `Humidity: ${Math.round(day.humidity)}% · Daily range: ${format(day.range)}°C<br/>` +
-                    `Min–max: ${format(day.min)}–${format(day.max)}°C<br/><em>Click for all cities on this day</em>`);
-            })
-            .on("mouseleave.tooltip", () => {
-                hoverMarker.style("display", "none");
-                tooltip.hide();
-            })
-            .on("dblclick", () => {
-                state.zoom = null;
-                render();
-            });
-
-        // Monthly averages on top: they show the seasonal path from dry to humid months.
-        const monthDots = panels.append("g").attr("clip-path", "url(#temperature-humidity-clip)")
-            .selectAll("g")
-            .data(d => d.months).join("g")
-            .attr("transform", d => `translate(${x(d.humidity)},${y(d.range)})`)
-            .on("mouseover", (event, d) => {
-                tooltip.show(event, `<strong>${d.city}</strong> · ${d3.timeFormat("%B")(new Date(2000, d.month, 1))} average` +
-                    `${filters.year === null ? "" : ` ${filters.year}`}<br/>` +
-                    `Humidity: ${Math.round(d.humidity)}% · Daily range: ${format(d.range)}°C`);
-            })
-            .on("mouseout", tooltip.hide);
-        monthDots.append("circle")
-            .attr("r", 8)
-            .attr("fill", d => color(d.city))
-            .attr("stroke", "#fff").attr("stroke-width", 1.5);
-        monthDots.append("text")
-            .attr("text-anchor", "middle").attr("dy", "0.35em")
-            .attr("font-size", "9px").attr("font-weight", 700).attr("fill", "#fff")
-            .style("pointer-events", "none")
-            .text(d => MONTH_LABELS[d.month][0]);
-    }
-
-    document.addEventListener("temperatureFiltersChanged", () => {
-        state.selected = null;
-        render();
-    });
-    document.querySelectorAll("#cityFilters input").forEach(checkbox => {
-        checkbox.addEventListener("change", render);
     });
 
     render();

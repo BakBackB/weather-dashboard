@@ -282,22 +282,33 @@
 }
 
 
-/* Back button of the "A Typical Year" drill-down */
-.temperature-back {
+/* Drill-down path of "A Typical Year", e.g. "All years › April › 2019" */
+.temperature-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 4px 0 8px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
-    color: #334155;
-    font-size: 13px;
+    font-size: 14px;
+}
+
+.temperature-path-step {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #0284c7;
+    font-size: inherit;
     cursor: pointer;
 }
 
-.temperature-back:hover {
-    background: #f1f5f9;
+.temperature-path-step:hover {
+    text-decoration: underline;
 }
 
-.temperature-back[hidden] {
-    display: none;
+.temperature-path-sep {
+    color: #94a3b8;
+}
+
+.temperature-path-current {
+    font-weight: 600;
+    color: #334155;
 }

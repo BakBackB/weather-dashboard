@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Start each chart independently after loading data.
 document.addEventListener("weatherDataLoaded", drawTemperatureInsights);
 document.addEventListener("weatherDataLoaded", drawTemperatureComparison);
-document.addEventListener("weatherDataLoaded", drawHumidityRange);
 document.addEventListener("weatherDataLoaded", drawExtremeCharts);
 document.addEventListener("weatherDataLoaded", drawRainfallChart);
 
