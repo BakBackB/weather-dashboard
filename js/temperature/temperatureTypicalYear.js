@@ -90,10 +90,11 @@ function drawTemperatureTypicalYear() {
         const steps = [{ label: filters.year === null ? "All years" : String(filters.year), target: { level: "months" } }];
         if (view.level !== "months") {
             const monthName = d3.timeFormat("%B")(new Date(2000, view.d.month, 1));
-            steps.push({ label: monthName, target: view.fromYear ? null : { level: "month", d: view.d } });
+            steps.push({ label: view.level === "month" ? `${monthName} (every year)` : monthName });
         }
-        if (view.level === "days" && !view.fromYear) steps.push({ label: String(view.r.year), target: null });
 
+        // On the overview the path would only repeat the chart title, so it is hidden (but keeps its space).
+        path.style("visibility", view.level === "months" ? "hidden" : null);
         path.selectAll("*").remove();
         steps.forEach((step, i) => {
             if (i > 0) path.append("span").attr("class", "temperature-path-sep").text("›");
@@ -176,7 +177,7 @@ function drawTemperatureTypicalYear() {
                 // With a year selected, a month opens its days directly; otherwise that month in every year.
                 view = filters.year === null
                     ? { level: "month", d }
-                    : { level: "days", d, r: { city: d.city, year: filters.year, mean: d.mean }, fromYear: true };
+                    : { level: "days", d, r: { city: d.city, year: filters.year, mean: d.mean } };
                 renderFingerprint();
             });
         move(dots).attr("cx", d => x(d.month)).attr("cy", d => y(d.mean));
@@ -278,19 +279,26 @@ function drawTemperatureTypicalYear() {
                 tooltip.hide();
             })
             .on("click", (event, r) => {
-                // Another city's bar selects that city; the highlighted city's bar opens the days.
-                view = r.city === d.city
-                    ? { level: "days", d, r }
-                    : { level: "month", d: climate.find(c => c.city === r.city && c.month === d.month) };
-                renderFingerprint();
+                // Another city's bar selects that city. The highlighted city's bar selects its year for all charts
+                // (the year slider moves) and opens the days of that year.
+                if (r.city !== d.city) {
+                    view = { level: "month", d: climate.find(c => c.city === r.city && c.month === d.month) };
+                    renderFingerprint();
+                } else {
+                    view = { level: "days", d, r };
+                    setTemperatureFilters({ year: r.year });
+                }
             });
+        // The year chosen with the year slider is outlined.
         bars.append("rect")
             .attr("y", r => yYear(r.max))
             .attr("width", xCityYear.bandwidth())
             .attr("height", r => yYear(r.min) - yYear(r.max))
             .attr("rx", 2)
             .attr("fill", r => color(r.city))
-            .attr("fill-opacity", 0.45);
+            .attr("fill-opacity", 0.45)
+            .attr("stroke", "#1e293b")
+            .attr("stroke-width", r => r.year === filters.year ? 2 : 0);
         bars.append("line")
             .attr("x1", -1).attr("x2", xCityYear.bandwidth() + 1)
             .attr("y1", r => yYear(r.mean)).attr("y2", r => yYear(r.mean))
@@ -335,11 +343,14 @@ function drawTemperatureTypicalYear() {
         const dayCount = d3.max(days, row => row.date.getDate());
         const day = row => row.date.getDate();
         const xDay = d3.scaleLinear().domain([1, dayCount]).range([0, w]);
-        // The y-axis fits the band of the highlighted city and the lines of the checked cities.
-        const shown = days.filter(row => checked.includes(row.city));
+        // The y-axis covers this month in every year (band of the highlighted city, lines of the checked cities),
+        // so it stays still when the year slider moves and only the data changes.
+        const monthDays = rawParsedWeather.filter(row => row.date.getMonth() === month);
+        const bandDays = monthDays.filter(row => row.city === r.city);
+        const shown = monthDays.filter(row => checked.includes(row.city));
         const yDay = d3.scaleLinear()
-            .domain([Math.min(d3.min(highlighted, row => row.tempMin), d3.min(shown, row => row.tempMean) ?? Infinity) - 1,
-                     Math.max(d3.max(highlighted, row => row.tempMax), d3.max(shown, row => row.tempMean) ?? -Infinity) + 1])
+            .domain([Math.min(d3.min(bandDays, row => row.tempMin), d3.min(shown, row => row.tempMean) ?? Infinity) - 1,
+                     Math.max(d3.max(bandDays, row => row.tempMax), d3.max(shown, row => row.tempMean) ?? -Infinity) + 1])
             .nice()
             .range([h, 0]);
         const monthYear = d3.timeFormat("%B %Y")(new Date(r.year, month, 1));
@@ -391,8 +402,7 @@ function drawTemperatureTypicalYear() {
                 view = {
                     level: "days",
                     d: climate.find(c => c.city === city && c.month === month),
-                    r: { city, year: r.year, mean: d3.mean(rows, row => row.tempMean) },
-                    fromYear: view.fromYear
+                    r: { city, year: r.year, mean: d3.mean(rows, row => row.tempMean) }
                 };
                 renderFingerprint();
             });
@@ -463,22 +473,21 @@ function drawTemperatureTypicalYear() {
         });
     });
 
-    // A new year keeps the open month: with a year, its days in that year; with "All years", that month in
-    // every year. So the year slider can step through the years of one month. A new season (or a month
-    // outside it) goes back to all months.
+    // The year slider is a filter and never changes the level: in "month in every year" it outlines the chosen
+    // year, in the day view it shows the same month in the chosen year ("All years" goes back to every year).
+    // A new season (or a month outside it) goes back to all months.
     document.addEventListener("temperatureFiltersChanged", () => {
         const month = view.level === "months" ? null : view.d.month;
         if (month === null || !filters.quarter.months.includes(month)) view = { level: "months" };
-        else if (filters.year === null) view = { level: "month", d: view.d };
-        else {
+        else if (view.level === "days" && filters.year === null) view = { level: "month", d: view.d };
+        else if (view.level === "days") {
             const city = view.d.city;
             const days = rawParsedWeather.filter(row =>
                 row.city === city && row.date.getFullYear() === filters.year && row.date.getMonth() === month);
             view = {
                 level: "days",
                 d: view.d,
-                r: { city, year: filters.year, mean: d3.mean(days, row => row.tempMean) },
-                fromYear: true
+                r: { city, year: filters.year, mean: d3.mean(days, row => row.tempMean) }
             };
         }
         renderFingerprint(true);

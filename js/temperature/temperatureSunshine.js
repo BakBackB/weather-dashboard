@@ -29,6 +29,22 @@ function drawTemperatureSunshine() {
             .sort((a, b) => a.key - b.key);
     }
 
+    // Fixed axis ranges for each view, over every year and season, so the axes stay still when the year or
+    // season changes and a transition only shows changes in the data. Monthly values of single years cover the
+    // 10-year averages; yearly values are computed for every season.
+    const meansOf = (rows, keyOf) => d3.rollups(rows,
+        v => ({ temp: d3.mean(v, d => d.tempMean), sunshine: d3.mean(v, d => d.sunshineHours) }),
+        d => d.city, keyOf).flatMap(([, groups]) => groups.map(([, values]) => values));
+    const fixedRange = values => ({
+        sunshine: [0, d3.max(values, d => d.sunshine)],
+        temp: d3.extent(values, d => d.temp)
+    });
+    const axisRanges = {
+        month: fixedRange(meansOf(rawParsedWeather, d => `${d.date.getFullYear()}-${d.date.getMonth()}`)),
+        year: fixedRange(TEMP_QUARTERS.flatMap(q => meansOf(
+            rawParsedWeather.filter(d => q.months.includes(d.date.getMonth())), d => d.date.getFullYear())))
+    };
+
     function keyLabel(key) {
         if (state.view === "year") {
             return filters.quarter.months.length < 12 ? `${key} (${filters.quarter.label})` : `${key}`;
@@ -82,10 +98,11 @@ function drawTemperatureSunshine() {
         const panel = d3.scaleBand().domain(cities).range([0, width]).paddingInner(0.08);
         const x = d3.scaleBand().domain(keys).range([0, panel.bandwidth()]).padding(0.25);
         // Dual axis: sunshine bars on the left axis, temperature line on the right axis.
-        // Bars encode length, so the left axis starts at 0. Temperature is interval data, so its axis fits the data.
+        // Bars encode length, so the left axis starts at 0. Temperature is interval data, so its axis fits the data
+        // of all years (see axisRanges).
         // Both scales are shared by all panels and are not tuned to make the line and the bars overlap.
-        const yBars = d3.scaleLinear().domain([0, d3.max(points, d => d.sunshine)]).nice().range([height, 0]);
-        const yTemp = d3.scaleLinear().domain(d3.extent(points, d => d.temp)).nice().range([height, 0]);
+        const yBars = d3.scaleLinear().domain(axisRanges[state.view].sunshine).nice().range([height, 0]);
+        const yTemp = d3.scaleLinear().domain(axisRanges[state.view].temp).nice().range([height, 0]);
         const columnX = key => x(key) - (x.step() - x.bandwidth()) / 2;  // column centred on a bar
         const tickFormat = state.view === "year" ? (d => `'${String(d).slice(2)}`)
             : keys.length < 12 ? (m => MONTH_LABELS[m]) : (m => MONTH_LABELS[m][0]);
