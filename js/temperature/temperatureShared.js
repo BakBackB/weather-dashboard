@@ -43,8 +43,8 @@ function createTooltip() {
     };
 }
 
-// Length of the transitions when a filter changes; none if the user prefers reduced motion.
-const TEMP_DURATION = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450;
+// Length of the transitions when a filter changes (ms).
+const TEMP_DURATION = 450;
 
 // Creates (or recreates) an 850px wide SVG and returns the inner group and its size.
 function createSvg(container, height, margin) {
@@ -149,10 +149,24 @@ function applyTemperatureCityFilter() {
         .style("display", function() { return checked.includes(this.dataset.city) ? null : "none"; });
 }
 
+// Mean of a value over a list of rows (sum divided by count).
+function average(rows, value) {
+    return d3.sum(rows, value) / rows.length;
+}
+
+// Groups rows by two keys with d3.group and turns every group into one object: summary(rows, key1, key2).
+function summarizeGroups(rows, key1, key2, summary) {
+    const result = [];
+    d3.group(rows, key1, key2).forEach((inner, k1) => {
+        inner.forEach((group, k2) => result.push(summary(group, k1, k2)));
+    });
+    return result;
+}
+
 // Pearson correlation of two accessors over a list of rows.
 function correlation(rows, xValue, yValue) {
-    const mx = d3.mean(rows, xValue);
-    const my = d3.mean(rows, yValue);
+    const mx = average(rows, xValue);
+    const my = average(rows, yValue);
     const sxy = d3.sum(rows, d => (xValue(d) - mx) * (yValue(d) - my));
     const sxx = d3.sum(rows, d => (xValue(d) - mx) ** 2);
     const syy = d3.sum(rows, d => (yValue(d) - my) ** 2);
@@ -161,17 +175,18 @@ function correlation(rows, xValue, yValue) {
 
 // Mean temperature per city and month, and its anomaly from the 10-year average of that month.
 function monthlyAnomalies() {
-    const cells = d3.rollups(
-        rawParsedWeather,
-        v => d3.mean(v, d => d.tempMean),
-        d => d.city,
-        d => d.date.getFullYear(),
-        d => d.date.getMonth()
-    ).flatMap(([city, years]) => years.flatMap(([year, months]) =>
-        months.map(([month, mean]) => ({ city, year, month, mean, date: new Date(year, month, 1) }))));
+    const cells = summarizeGroups(rawParsedWeather, d => d.city, d => `${d.date.getFullYear()}-${d.date.getMonth()}`,
+        (rows, city) => ({
+            city,
+            year: rows[0].date.getFullYear(),
+            month: rows[0].date.getMonth(),
+            mean: average(rows, d => d.tempMean),
+            date: new Date(rows[0].date.getFullYear(), rows[0].date.getMonth(), 1)
+        }));
 
-    const average = d3.rollup(cells, v => d3.mean(v, d => d.mean), d => d.city, d => d.month);
-    cells.forEach(d => d.anomaly = d.mean - average.get(d.city).get(d.month));
+    // The 10-year average of every city and calendar month.
+    const normal = d3.group(cells, d => d.city, d => d.month);
+    cells.forEach(d => d.anomaly = d.mean - average(normal.get(d.city).get(d.month), c => c.mean));
 
     return cells.sort((a, b) => a.date - b.date);
 }
