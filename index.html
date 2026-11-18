@@ -51,8 +51,8 @@
             </div>
 
             <h4 class="temperature-chart-title">A Typical Year</h4>
-            <p class="temperature-chart-note">Bar: average daily minimum to maximum · Tick: monthly mean. Hover a bar for humidity and sunshine, click it to see that month in every year, then click a year to see its days (line: daily mean, band: daily min–max, dashed: month average).</p>
-            <button id="temperatureFingerprintBack" class="temperature-back" hidden></button>
+            <p class="temperature-chart-note">Line: monthly mean temperature · Dashed line: follows the mouse, the values of all cities are shown top right. Hover a dot for min–max, humidity and sunshine, click it to see that month in every year (click another city there to highlight it), then click a year to see its days (line: daily mean, band: daily min–max, dashed: month average).</p>
+            <nav id="temperatureFingerprintPath" class="temperature-path" aria-label="Drill-down path"></nav>
             <div id="temperature-fingerprint-chart" class="temperature-chart"></div>
 
             <h4 class="temperature-chart-title">Temperature and Sunshine</h4>
@@ -67,14 +67,8 @@
             <div id="temperature-comparison-chart" class="temperature-chart"></div>
             <div id="temperature-comparison-detail" class="temperature-detail"></div>
 
-            <h4 class="temperature-chart-title">Humidity and Daily Temperature Range</h4>
-            <p class="temperature-chart-note">Small dots: single days · Large dots: monthly averages (letter = month) · Dashed line: trend · R²: share of the daily-range differences that humidity explains. Hover a day for its values, click it for all cities, drag a box to zoom (double-click resets).</p>
-            <p class="temperature-chart-note">Humidity predicts the daily range well only in Ho Chi Minh City (R² ≈ 0.7): there, dry also means cloud-free (dry season) and humid means cloudy (rainy season). In Hanoi, winter days with the same humidity can be grey drizzle (small range) or sunny (large range), and Da Nang by the sea is humid almost all year, so humidity explains little there. Clouds are the common driver.</p>
-            <div id="temperature-humidity-chart" class="temperature-chart"></div>
-            <div id="temperature-humidity-detail" class="temperature-detail"></div>
-
-            <h4 class="temperature-chart-title">2015–2025: El Niño, La Niña and Sudden Drops</h4>
-            <p class="temperature-chart-note">Lines: monthly temperature anomaly (3-month average) · Shading: El Niño and La Niña periods (NOAA Oceanic Niño Index) · Ticks: days on which the mean fell by 4°C or more. Drag in the bottom strip to zoom.</p>
+            <h4 class="temperature-chart-title">2015–2025: El Niño and La Niña</h4>
+            <p class="temperature-chart-note">Lines: monthly temperature anomaly (3-month average) · Shading: El Niño and La Niña periods (NOAA Oceanic Niño Index). Drag in the bottom strip to zoom.</p>
             <div id="temperature-timeline-chart" class="temperature-chart"></div>
         </section>
 
