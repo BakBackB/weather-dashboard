@@ -68,7 +68,7 @@ The dataset (\texttt{data/dailyweather\_hanoi\_danang\_hcm.csv}) has one row per
 It comes from the Open-Meteo Historical Weather API, which is based on reanalysis data. We used
 \texttt{temperature\_2m\_mean/max/min}, \texttt{relative\_humidity\_2m\_mean}, \texttt{sunshine\_duration},
 \texttt{daylight\_duration} and \texttt{precipitation\_sum}.
-For the El Niño analysis we added NOAA's Oceanic Niño Index (\url{https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt}) as \texttt{data/oni.csv}.
+For the El Niño analysis we added NOAA's Oceanic Niño Index (\url{https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt}) as \texttt{data/noaa\_oceanic\_nino\_index.csv}.
 The full analysis is reproducible with \texttt{python3 report/eda.py}, which writes all figures and \texttt{report/stats.txt}.
 
 \begin{table}[H]
@@ -247,7 +247,7 @@ Detecting it would need at least 30 years of data; the Open-Meteo archive goes b
 
 \subsection{El Niño and La Niña}
 The warm years 2019 and 2024 and the cold year 2022 suggest a link to the El Niño--Southern Oscillation (ENSO).
-We added NOAA's \textbf{Oceanic Niño Index} (ONI; \texttt{data/oni.csv}), the 3-month mean sea-surface temperature anomaly
+We added NOAA's \textbf{Oceanic Niño Index} (ONI; \texttt{data/noaa\_oceanic\_nino\_index.csv}), the 3-month mean sea-surface temperature anomaly
 in the central tropical Pacific. Months with ONI $\ge+0.5$\,\textdegree C count as El Niño and months with ONI $\le-0.5$\,\textdegree C as La Niña.
 The period contains three El Niño events (2014--16, very strong; 2018--20, moderate; 2023--24, strong) and two La Niña events (2017--18; 2020--23).
 We compared the ONI with the monthly temperature anomaly of each city (the month's mean minus the 10-year mean of that month).
@@ -388,7 +388,7 @@ The temperature charts are in \texttt{js/temperature.js} (shared helpers and the
 registrations were added,
 (iii) new markup inside the temperature section of \texttt{index.html},
 (iv) new CSS classes prefixed with \texttt{temperature-}, and
-(v) the new file \texttt{data/oni.csv} with the NOAA El Niño index for 2014--2025.
+(v) the new file \texttt{data/noaa\_oceanic\_nino\_index.csv} with the NOAA El Niño index for 2014--2025.
 The rainfall and extreme-weather code was not changed.
 
 \begin{figure}[H]

@@ -1,11 +1,11 @@
-// Key insights for RQ1 in two charts: a typical year ("fingerprint") and 2015–2025 over time.
-// Uses the shared helpers from temperature.js.
+// Temperature tab (RQ1): chart "A Typical Year" with its drill-down
+// (all months → one month in every year → the days of one month in one year).
+// Uses the helpers from temperatureShared.js.
 
-function drawTemperatureInsights() {
+function drawTemperatureTypicalYear() {
     const color = cityColorScale();
     const tooltip = createTooltip();
     const format = v => v.toFixed(1);
-    const formatMonth = d3.timeFormat("%b %Y");
 
     // Averages per city and calendar month for a set of days.
     const monthlyValues = rows => d3.rollups(
@@ -31,7 +31,6 @@ function drawTemperatureInsights() {
     const filters = temperatureFilters;
     initTemperatureFilters();
 
-    // --- Chart 1: a typical year, with a drill-down in the same chart ---
     // Levels: all months → one month in every year → the days of one month in one year.
     const fingerprintId = "#temperature-fingerprint-chart";
     const fingerprintHeight = 410;
@@ -74,11 +73,12 @@ function drawTemperatureInsights() {
         };
     }
 
-    function renderFingerprint() {
+    // animate: the day view moves to a new year with a transition (year slider).
+    function renderFingerprint(animate = false) {
         tooltip.hide();
         if (view.level === "months") drawFingerprint();
         else if (view.level === "month") drawMonth(view.d);
-        else drawDays(view.r, view.d.month);
+        else drawDays(view.r, view.d.month, animate);
 
         drawPath();
         applyTemperatureCityFilter();
@@ -313,48 +313,72 @@ function drawTemperatureInsights() {
     }
 
     // Level 3: one month in one year, day by day: one line per city (daily mean), the clicked city highlighted
-    // with a band from its daily minimum to maximum.
-    function drawDays(r, month) {
+    // with a band from its daily minimum to maximum. When only the year changes (year slider), the chart is
+    // updated with a transition, so the days of different years can be compared.
+    let setDaysGuide;
+    function drawDays(r, month, animate = false) {
         const checked = Array.from(document.querySelectorAll("#cityFilters input:checked")).map(cb => cb.value);
         const days = rawParsedWeather.filter(row => row.date.getFullYear() === r.year && row.date.getMonth() === month);
         const highlighted = days.filter(row => row.city === r.city);
         const margin = { top: 30, right: 90, bottom: 40, left: 60 };
-        const { svg, width: w, height: h } = createSvg(fingerprintId, fingerprintHeight, margin);
+        const w = 850 - margin.left - margin.right;
+        const h = fingerprintHeight - margin.top - margin.bottom;
 
+        // Same month and same highlighted city: update the existing chart, otherwise draw it new.
+        const structure = `${month}|${r.city}`;
+        let svg = d3.select(fingerprintId).select(".temp-fp-days");
+        animate = animate && !svg.empty() && svg.attr("data-structure") === structure;
+        if (!animate) svg = buildDays(margin, w, h).attr("data-structure", structure);
+        const move = selection => animate ? selection.transition().duration(TEMP_DURATION) : selection;
+
+        // x: day of the month, so the days of different years line up.
+        const dayCount = d3.max(days, row => row.date.getDate());
+        const day = row => row.date.getDate();
+        const xDay = d3.scaleLinear().domain([1, dayCount]).range([0, w]);
         // The y-axis fits the band of the highlighted city and the lines of the checked cities.
         const shown = days.filter(row => checked.includes(row.city));
-        const xDay = d3.scaleTime().domain(d3.extent(days, row => row.date)).range([0, w]);
         const yDay = d3.scaleLinear()
             .domain([Math.min(d3.min(highlighted, row => row.tempMin), d3.min(shown, row => row.tempMean) ?? Infinity) - 1,
                      Math.max(d3.max(highlighted, row => row.tempMax), d3.max(shown, row => row.tempMean) ?? -Infinity) + 1])
             .nice()
             .range([h, 0]);
         const monthYear = d3.timeFormat("%B %Y")(new Date(r.year, month, 1));
+        const sameLength = animate && +svg.attr("data-days") === dayCount;  // paths only morph with equal points
+        svg.attr("data-days", dayCount);
+        const morph = selection => sameLength ? move(selection) : selection;
 
-        svg.append("text")
-            .attr("x", 0).attr("y", -12)
-            .attr("font-size", "12px").attr("font-weight", 600).attr("fill", "#475569")
-            .text(`${monthYear}, day by day · ${r.city}`);
+        svg.select(".temp-fp-days-title").text(`${monthYear}, day by day · ${r.city}`);
 
-        addGrid(svg, yDay, w);
-        svg.append("g").attr("class", "axis")
-            .attr("transform", `translate(0,${h})`)
-            .call(d3.axisBottom(xDay).ticks(d3.timeDay.every(5)).tickFormat(d3.timeFormat("%d %b")));
-        svg.append("g").attr("class", "axis").call(d3.axisLeft(yDay).ticks(5));
-        addAxisLabel(svg, "Temperature (°C)", -h / 2, -45, true);
+        const grid = svg.select(".temp-fp-days-grid").selectAll("line")
+            .data(yDay.ticks(6), d => d)
+            .join(enter => enter.append("line")
+                .attr("x1", 0).attr("x2", w)
+                .attr("y1", d => yDay(d)).attr("y2", d => yDay(d))
+                .attr("stroke", "#e2e8f0")
+                .attr("stroke-dasharray", "4,4"));
+        move(grid).attr("y1", d => yDay(d)).attr("y2", d => yDay(d));
+        move(svg.select(".temp-fp-days-x-axis")).call(d3.axisBottom(xDay)
+            .tickValues(d3.range(1, dayCount + 1, 5))
+            .tickFormat(d => `${String(d).padStart(2, "0")} ${MONTH_LABELS[month]}`));
+        move(svg.select(".temp-fp-days-y-axis")).call(d3.axisLeft(yDay).ticks(5));
 
-        svg.append("path")
-            .datum(highlighted)
-            .attr("d", d3.area().x(row => xDay(row.date)).y0(row => yDay(row.tempMin)).y1(row => yDay(row.tempMax)))
-            .attr("fill", color(r.city))
-            .attr("fill-opacity", 0.15);
+        morph(svg.select(".temp-fp-days-band").datum(highlighted))
+            .attr("d", d3.area().x(row => xDay(day(row))).y0(row => yDay(row.tempMin)).y1(row => yDay(row.tempMax)));
 
-        const lines = svg.selectAll(".temp-fp-day-line")
-            .data(d3.groups(days, row => row.city)).join("g")
-            .attr("class", "temp-fp-day-line temp-city")
-            .attr("data-city", ([city]) => city)
-            .attr("opacity", ([city]) => city === r.city ? 1 : 0.3)
-            .style("cursor", ([city]) => city === r.city ? null : "pointer")
+        const lines = svg.select(".temp-fp-days-lines").selectAll(".temp-fp-day-line")
+            .data(d3.groups(days, row => row.city), ([city]) => city)
+            .join(enter => {
+                const g = enter.append("g")
+                    .attr("class", "temp-fp-day-line temp-city")
+                    .attr("data-city", ([city]) => city)
+                    .attr("opacity", ([city]) => city === r.city ? 1 : 0.3)
+                    .style("cursor", ([city]) => city === r.city ? null : "pointer");
+                g.append("path")
+                    .attr("class", "line")
+                    .attr("stroke", ([city]) => color(city))
+                    .style("pointer-events", "stroke");
+                return g;
+            })
             // Hovering another city brings its line forward, clicking it highlights that city.
             .on("mouseenter", (event, [city]) => {
                 lines.attr("opacity", ([c]) => c === r.city ? 1 : c === city ? 0.7 : 0.3);
@@ -372,17 +396,15 @@ function drawTemperatureInsights() {
                 };
                 renderFingerprint();
             });
-        lines.append("path")
-            .attr("class", "line")
-            .attr("d", ([, rows]) => d3.line().x(row => xDay(row.date)).y(row => yDay(row.tempMean))(rows))
-            .attr("stroke", ([city]) => color(city))
-            .style("pointer-events", "stroke");
-        lines.selectAll("circle")
-            .data(([, rows]) => rows).join("circle")
-            .attr("cx", row => xDay(row.date))
-            .attr("cy", row => yDay(row.tempMean))
-            .attr("r", 3)
-            .attr("fill", row => color(row.city))
+        morph(lines.select("path").datum(([, rows]) => rows))
+            .attr("d", d3.line().x(row => xDay(day(row))).y(row => yDay(row.tempMean)));
+        const dots = lines.selectAll("circle")
+            .data(([, rows]) => rows, day)
+            .join(enter => enter.append("circle")
+                .attr("r", 3)
+                .attr("fill", row => color(row.city))
+                .attr("cx", row => xDay(day(row)))
+                .attr("cy", row => yDay(row.tempMean)))
             .on("mouseover", (event, row) => {
                 tooltip.show(event, `<strong>${row.city}</strong> · ${d3.timeFormat("%A, %d %B %Y")(row.date)}<br/>` +
                     `Mean: ${format(row.tempMean)}°C · Min–max: ${format(row.tempMin)}–${format(row.tempMax)}°C<br/>` +
@@ -390,25 +412,48 @@ function drawTemperatureInsights() {
                     (row.city === r.city ? "" : `<br/><em>Click to highlight ${row.city}</em>`));
             })
             .on("mouseout", tooltip.hide);
+        move(dots).attr("cx", row => xDay(day(row))).attr("cy", row => yDay(row.tempMean));
 
         // The month's average in that year for the clicked city, in neutral grey so it is not mistaken for data.
-        svg.append("line")
-            .attr("x1", 0).attr("x2", w)
-            .attr("y1", yDay(r.mean)).attr("y2", yDay(r.mean))
-            .attr("stroke", "#64748b")
-            .attr("stroke-dasharray", "5,4")
-            .style("pointer-events", "none");
-        svg.append("text")
-            .attr("x", w + 6).attr("y", yDay(r.mean))
-            .attr("dy", "0.35em")
-            .attr("font-size", "11px").attr("fill", "#64748b")
-            .text(`avg. ${format(r.mean)}°C`);
+        move(svg.select(".temp-fp-days-avg")).attr("y1", yDay(r.mean)).attr("y2", yDay(r.mean));
+        svg.select(".temp-fp-days-avg-label").text(`avg. ${format(r.mean)}°C`);
+        move(svg.select(".temp-fp-days-avg-label")).attr("y", yDay(r.mean));
 
-        addHoverGuide(svg, w, h, d3.groups(days, row => +row.date).map(([, rows]) => ({
-            x: xDay(rows[0].date),
+        setDaysGuide(d3.groups(days, day).map(([d, rows]) => ({
+            x: xDay(d),
             label: d3.timeFormat("%d %b")(rows[0].date),
             values: rows.map(row => ({ city: row.city, value: row.tempMean }))
         })));
+    }
+
+    // The parts of the day view that do not change with the year.
+    function buildDays(margin, w, h) {
+        const { svg } = createSvg(fingerprintId, fingerprintHeight, margin);
+        svg.classed("temp-fp-days", true);
+        svg.append("text")
+            .attr("class", "temp-fp-days-title")
+            .attr("x", 0).attr("y", -12)
+            .attr("font-size", "12px").attr("font-weight", 600).attr("fill", "#475569");
+        svg.append("g").attr("class", "temp-fp-days-grid");
+        svg.append("g").attr("class", "axis temp-fp-days-x-axis")
+            .attr("transform", `translate(0,${h})`);
+        svg.append("g").attr("class", "axis temp-fp-days-y-axis");
+        addAxisLabel(svg, "Temperature (°C)", -h / 2, -45, true);
+        svg.append("path").attr("class", "temp-fp-days-band")
+            .attr("fill", color(view.r.city))
+            .attr("fill-opacity", 0.15);
+        svg.append("g").attr("class", "temp-fp-days-lines");
+        svg.append("line").attr("class", "temp-fp-days-avg")
+            .attr("x1", 0).attr("x2", w)
+            .attr("stroke", "#64748b")
+            .attr("stroke-dasharray", "5,4")
+            .style("pointer-events", "none");
+        svg.append("text").attr("class", "temp-fp-days-avg-label")
+            .attr("x", w + 6)
+            .attr("dy", "0.35em")
+            .attr("font-size", "11px").attr("fill", "#64748b");
+        setDaysGuide = addHoverGuide(svg, w, h);
+        return svg;
     }
 
     // The day view fits its y-axis to the checked cities, so it is redrawn when they change.
@@ -418,213 +463,26 @@ function drawTemperatureInsights() {
         });
     });
 
-    // A new year or season goes back to all months.
+    // A new year keeps the open month: with a year, its days in that year; with "All years", that month in
+    // every year. So the year slider can step through the years of one month. A new season (or a month
+    // outside it) goes back to all months.
     document.addEventListener("temperatureFiltersChanged", () => {
-        view = { level: "months" };
-        renderFingerprint();
+        const month = view.level === "months" ? null : view.d.month;
+        if (month === null || !filters.quarter.months.includes(month)) view = { level: "months" };
+        else if (filters.year === null) view = { level: "month", d: view.d };
+        else {
+            const city = view.d.city;
+            const days = rawParsedWeather.filter(row =>
+                row.city === city && row.date.getFullYear() === filters.year && row.date.getMonth() === month);
+            view = {
+                level: "days",
+                d: view.d,
+                r: { city, year: filters.year, mean: d3.mean(days, row => row.tempMean) },
+                fromYear: true
+            };
+        }
+        renderFingerprint(true);
     });
 
-    // --- Chart 2: 2015–2025 (anomalies, El Niño / La Niña) with a brush to zoom ---
-    function drawTimeline(oni) {
-        const margin = { top: 54, right: 20, bottom: 30, left: 110 };
-        const { svg, width, height } = createSvg("#temperature-timeline-chart", 432, margin);
-
-        const mainHeight = 220;
-        const contextTop = mainHeight + 50;
-        const contextHeight = height - contextTop;
-
-        // 3-month centred mean, matching the 3-month seasons of the El Niño index.
-        const series = d3.groups(monthlyAnomalies(), d => d.city).map(([city, months]) => ({
-            city,
-            values: months.map((d, i) => ({
-                date: d.date,
-                anomaly: d3.mean(months.slice(Math.max(0, i - 1), i + 2), m => m.anomaly)
-            }))
-        }));
-
-        const start = series[0].values[0].date;
-        const end = d3.timeMonth.offset(series[0].values[series[0].values.length - 1].date, 1);
-        const limit = d3.max(series, s => d3.max(s.values, d => Math.abs(d.anomaly)));
-
-        const x = d3.scaleTime().domain([start, end]).range([0, width]);
-        const xContext = x.copy();
-        const y = d3.scaleLinear().domain([-limit, limit]).nice().range([mainHeight, 0]);
-        const yContext = y.copy().range([contextHeight, 0]);
-
-        // Merge consecutive El Niño (ONI >= +0.5) or La Niña (ONI <= -0.5) months into periods.
-        const periods = [];
-        oni.map(d => ({ date: new Date(+d.year, +d.month - 1, 1), oni: +d.oni }))
-            .filter(d => d.date >= start && d.date < end)
-            .forEach(d => {
-                const phase = d.oni >= 0.5 ? "El Niño" : d.oni <= -0.5 ? "La Niña" : null;
-                const last = periods[periods.length - 1];
-                if (!phase) return;
-                if (last && last.phase === phase && +last.end === +d.date) {
-                    last.end = d3.timeMonth.offset(d.date, 1);
-                    if (Math.abs(d.oni) > Math.abs(last.peak)) last.peak = d.oni;
-                } else {
-                    periods.push({ phase, start: d.date, end: d3.timeMonth.offset(d.date, 1), peak: d.oni });
-                }
-            });
-
-        const phaseColor = { "El Niño": "#fecaca", "La Niña": "#bfdbfe" };
-
-        // Everything that moves when zooming is clipped to the plot width.
-        svg.append("clipPath").attr("id", "temperature-timeline-clip")
-            .append("rect").attr("width", width).attr("height", mainHeight);
-        const plot = svg.append("g").attr("clip-path", "url(#temperature-timeline-clip)");
-
-        const shading = plot.append("g")
-            .selectAll("rect")
-            .data(periods).join("rect")
-            .attr("height", mainHeight)
-            .attr("fill", d => phaseColor[d.phase])
-            .on("mouseover", (event, d) => {
-                tooltip.show(event, `<strong>${d.phase}</strong><br/>` +
-                    `${formatMonth(d.start)} – ${formatMonth(d3.timeMonth.offset(d.end, -1))}<br/>` +
-                    `Peak Pacific index (ONI): ${d.peak > 0 ? "+" : ""}${format(d.peak)}°C`);
-            })
-            .on("mouseout", tooltip.hide);
-
-        svg.insert("g", "g").call(g => addGrid(g, y, width));
-        svg.append("line")
-            .attr("x2", width)
-            .attr("y1", y(0)).attr("y2", y(0))
-            .attr("stroke", "#94a3b8");
-        const xAxis = svg.append("g").attr("class", "axis")
-            .attr("transform", `translate(0,${mainHeight})`);
-        svg.append("g").attr("class", "axis")
-            .call(d3.axisLeft(y).ticks(5).tickFormat(d => (d > 0 ? "+" : "") + d + "°C"));
-        addAxisLabel(svg, "Anomaly", -mainHeight / 2, -50, true);
-
-        const line = d3.line().x(d => x(d.date)).y(d => y(d.anomaly)).curve(d3.curveMonotoneX);
-        const lines = plot.append("g")
-            .style("pointer-events", "none")
-            .selectAll("g")
-            .data(series).join("g")
-            .attr("class", "temp-city")
-            .attr("data-city", d => d.city)
-            .append("path")
-            .attr("class", "line")
-            .attr("stroke", d => color(d.city));
-
-        // Legend above the plot.
-        const legendItems = [
-            { label: "El Niño", fill: phaseColor["El Niño"] },
-            { label: "La Niña", fill: phaseColor["La Niña"] },
-            ...TEMP_CITIES.map(city => ({ label: city, stroke: color(city) }))
-        ];
-        const legend = svg.append("g")
-            .attr("transform", "translate(0,-46)")
-            .selectAll("g")
-            .data(legendItems).join("g")
-            .attr("transform", (d, i) => `translate(${i * 120},0)`);
-        legend.filter(d => d.fill).append("rect")
-            .attr("width", 14).attr("height", 14)
-            .attr("fill", d => d.fill);
-        legend.filter(d => d.stroke).append("line")
-            .attr("x2", 14).attr("y1", 7).attr("y2", 7)
-            .attr("stroke", d => d.stroke).attr("stroke-width", 2.5);
-        legend.append("text")
-            .attr("x", 20).attr("y", 11)
-            .attr("font-size", "12px").attr("fill", "#475569")
-            .text(d => d.label);
-
-        // Hover guide: a dashed vertical line at the nearest month and every checked city's anomaly there.
-        const short = { "Hanoi": "Hanoi", "Da Nang": "Da Nang", "Ho Chi Minh City": "HCMC" };
-        const signed = v => (v > 0 ? "+" : "") + format(v);
-        plot.insert("rect", ":first-child")  // catches the mouse outside the shaded periods
-            .attr("width", width).attr("height", mainHeight)
-            .attr("fill", "transparent");
-        const guide = plot.append("line")
-            .attr("y1", 0).attr("y2", mainHeight)
-            .attr("stroke", "#64748b")
-            .attr("stroke-dasharray", "4,4")
-            .attr("display", "none")
-            .style("pointer-events", "none");
-        const readout = svg.append("text")
-            .attr("x", width).attr("y", -12)
-            .attr("text-anchor", "end")
-            .attr("font-size", "11px").attr("fill", "#475569");
-        plot.on("mousemove", event => {
-            const date = d3.timeMonth.round(x.invert(d3.pointer(event, svg.node())[0]));
-            const at = series.map(s => ({ city: s.city, d: s.values.find(v => +v.date === +date) })).filter(v => v.d);
-            if (!at.length) return;
-            const period = periods.find(p => p.start <= date && date < p.end);
-            const checked = Array.from(document.querySelectorAll("#cityFilters input:checked")).map(cb => cb.value);
-            guide.attr("x1", x(date)).attr("x2", x(date)).attr("display", null);
-            readout.text(`${formatMonth(date)}${period ? ` (${period.phase})` : ""} — ` + at
-                .filter(v => checked.includes(v.city))
-                .map(v => `${short[v.city]}: ${signed(v.d.anomaly)}°C`).join(" · "));
-        }).on("mouseleave", () => {
-            guide.attr("display", "none");
-            readout.text("");
-        });
-
-        // Redraws everything that depends on the visible time range.
-        function render() {
-            shading.attr("x", d => x(d.start)).attr("width", d => x(d.end) - x(d.start));
-            lines.attr("d", d => line(d.values));
-            xAxis.call(d3.axisBottom(x).ticks(8));
-        }
-
-        // Context strip: the full period, brush to zoom the chart above.
-        const context = svg.append("g").attr("transform", `translate(0,${contextTop})`);
-        const contextLine = d3.line().x(d => xContext(d.date)).y(d => yContext(d.anomaly));
-        context.selectAll("path")
-            .data(series).join("path")
-            .attr("class", "temp-city")
-            .attr("data-city", d => d.city)
-            .attr("d", d => contextLine(d.values))
-            .attr("fill", "none")
-            .attr("stroke", d => color(d.city))
-            .attr("stroke-width", 1)
-            .attr("opacity", 0.7);
-        context.append("g").attr("class", "axis")
-            .attr("transform", `translate(0,${contextHeight})`)
-            .call(d3.axisBottom(xContext).ticks(d3.timeYear).tickFormat(d3.timeFormat("%Y")));
-        context.append("text")
-            .attr("x", -8).attr("y", contextHeight / 2)
-            .attr("dy", "0.35em")
-            .attr("text-anchor", "end")
-            .attr("font-size", "11px").attr("fill", "#64748b")
-            .text("Drag to zoom:");
-        const brush = d3.brushX()
-            .extent([[0, 0], [width, contextHeight]])
-            .on("brush end", ({ selection }) => {
-                x.domain(selection ? selection.map(xContext.invert) : xContext.domain());
-                render();
-            });
-        const brushGroup = context.append("g").call(brush);
-
-        // The shared year filter zooms the timeline to that year (the season filter does not apply to a timeline).
-        // The brush glides to the new range, so the chart zooms smoothly.
-        function zoomToYear(animate) {
-            const year = temperatureFilters.year;
-            // "All years" glides to the full range first and then removes the brush.
-            const range = year === null ? xContext.range() : [new Date(year, 0, 1), new Date(year + 1, 0, 1)].map(xContext);
-            const clear = () => {
-                if (year === null) brushGroup.call(brush.move, null);
-            };
-            if (animate) brushGroup.transition().duration(TEMP_DURATION).call(brush.move, range).on("end", clear);
-            else {
-                brushGroup.call(brush.move, range);
-                clear();
-            }
-        }
-        document.addEventListener("temperatureFiltersChanged", () => zoomToYear(true));
-
-        render();
-        zoomToYear(false);
-    }
-
     renderFingerprint();
-
-    // The El Niño index is a separate file (NOAA Oceanic Niño Index).
-    d3.csv("data/oni.csv")
-        .then(oni => {
-            drawTimeline(oni);
-            applyTemperatureCityFilter();
-        })
-        .catch(error => console.error("Error loading El Niño index:", error));
 }
