@@ -1,5 +1,9 @@
 let rawParsedWeather = [];
 
+function parseWeatherNumber(value) {
+    return value == null || String(value).trim() === "" ? NaN : Number(value);
+}
+
 async function loadWeatherData() {
     try {
         const [locationData, weatherData] = await Promise.all([
@@ -27,6 +31,11 @@ async function loadWeatherData() {
                 dayStr: parsedDate ? d3.timeFormat("%Y-%m-%d")(parsedDate) : null,
                 tempMean: Number(d.temperature_2m_mean),
                 tempMax: Number(d.temperature_2m_max),
+                apparentTempMax: parseWeatherNumber(d.apparent_temperature_max),
+                humidity: parseWeatherNumber(d.relative_humidity_2m_mean),
+                sunshineHours: parseWeatherNumber(d.sunshine_duration) / 3600,
+                windSpeedMax: parseWeatherNumber(d.wind_speed_10m_max),
+                windDirection: parseWeatherNumber(d.winddirection_10m_dominant),
                 precipitation: Number(d.precipitation_sum),
                 precipitationHours: Number(d.precipitation_hours),
             };
