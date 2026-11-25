@@ -8,6 +8,9 @@ document.addEventListener("weatherDataLoaded", drawTemperatureTypicalYear);
 document.addEventListener("weatherDataLoaded", drawTemperatureSunshine);
 document.addEventListener("weatherDataLoaded", drawTemperatureElNino);
 document.addEventListener("weatherDataLoaded", drawExtremeCharts);
+document.addEventListener("weatherDataLoaded", drawExtremeFrequency);
+document.addEventListener("weatherDataLoaded", drawExtremeHeatmap);
+document.addEventListener("weatherDataLoaded", drawExtremeStormDrivers);
 document.addEventListener("weatherDataLoaded", drawRainfallChart);
 
 // Rainfall State values

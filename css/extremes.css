@@ -1,0 +1,486 @@
+#extremes .view-label {
+    font-weight: 400;
+}
+
+#extremes .city-filters,
+#extremes .extreme-frequency-legend,
+#extremes .extreme-city-legend {
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 8px 10px 15px;
+}
+
+#extremes .controls > .city-filters {
+    margin: 0;
+}
+
+#extremes .extreme-chart-title,
+#extremes .extreme-heatmap-card h4 {
+    text-align: center;
+    color: #2c3e50;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 35px 0 4px;
+}
+
+#extremes .extreme-change-marker {
+    fill: none;
+    stroke-width: 2;
+    pointer-events: none;
+}
+
+#extremes .extreme-change-label {
+    font-size: 12px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: #fff;
+    stroke-width: 4;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+#extremes .extreme-note {
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    margin: 0 0 10px;
+}
+
+#extremes .extreme-chart-layout,
+#extremes .extreme-zoom-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#extremes .extreme-chart-layout > .extreme-chart,
+#extremes .extreme-overview {
+    flex: 1;
+    min-width: 0;
+}
+
+#extremes .extreme-threshold {
+    flex: 0 0 155px;
+    color: #475569;
+    font-size: 13px;
+}
+
+#extremes .extreme-threshold label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+#extremes .extreme-threshold-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+#extremes .extreme-threshold input {
+    box-sizing: border-box;
+    width: 80px;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font: inherit;
+}
+
+#extremes .extreme-threshold input:invalid {
+    border-color: #b91c1c;
+}
+
+@media (max-width: 640px) {
+    #extremes .extreme-chart-layout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #extremes .extreme-threshold {
+        flex-basis: auto;
+        align-self: flex-end;
+        margin-bottom: 12px;
+    }
+}
+
+#extremes .extreme-reset {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font: inherit;
+    cursor: pointer;
+}
+
+#extremes .extreme-reset:hover {
+    background: #e2e8f0;
+}
+
+#extremes .extreme-brush .selection {
+    fill: #0284c7;
+    fill-opacity: 0.15;
+    stroke: #0284c7;
+}
+
+#extremes .extreme-brush .handle {
+    fill: #0284c7;
+    fill-opacity: 0.85;
+    stroke: #fff;
+    stroke-width: 1;
+    cursor: ew-resize;
+}
+
+#extremes .extreme-brush .handle:hover {
+    fill: #0369a1;
+    fill-opacity: 1;
+}
+
+#extremes .extreme-analysis {
+    margin-top: 35px;
+}
+
+#extremes .extreme-grid line {
+    stroke: #e2e8f0;
+    stroke-dasharray: 4 4;
+}
+
+#extremes .extreme-axis-label {
+    fill: #475569;
+    font-size: 12px;
+}
+
+#extremes .extreme-heatmap-cell {
+    stroke: #fff;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+#extremes .extreme-frequency-item:hover .extreme-frequency-bar,
+#extremes .extreme-frequency-item:focus .extreme-frequency-bar,
+#extremes .extreme-heatmap-cell:hover,
+#extremes .extreme-wind-day[data-active="true"] .extreme-wind-dot,
+#extremes .extreme-sunshine-day[data-active="true"] .extreme-sunshine-dot {
+    stroke: #0f172a;
+    stroke-width: 2;
+}
+
+#extremes .extreme-zero-bar {
+    stroke-dasharray: 2 2;
+}
+
+#extremes .extreme-frequency-value {
+    font-size: 11px;
+    pointer-events: none;
+}
+
+#extremes .extreme-frequency-item[role="button"],
+#extremes .extreme-direction-bar {
+    cursor: pointer;
+}
+
+#extremes .extreme-frequency-legend,
+#extremes .extreme-city-legend {
+    display: flex;
+    gap: 15px;
+    color: #334155;
+    font-size: 13px;
+}
+
+#extremes .extreme-frequency-legend-item,
+#extremes .extreme-city-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#extremes .extreme-frequency-swatch,
+#extremes .extreme-city-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+#extremes .extreme-frequency-path {
+    margin: 4px 10px 8px;
+    font-size: 14px;
+}
+
+#extremes .extreme-frequency-path:not([hidden]) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#extremes .extreme-path-step {
+    padding: 5px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#extremes .extreme-path-step:hover {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+#extremes .extreme-path-step:focus-visible {
+    outline: 2px solid #0284c7;
+    outline-offset: 2px;
+}
+
+#extremes .extreme-path-sep {
+    color: #94a3b8;
+}
+
+#extremes .extreme-path-current {
+    color: #334155;
+    font-weight: 600;
+}
+
+#extremes .extreme-colour-legend {
+    max-width: 500px;
+    margin: 12px 10px;
+}
+
+#extremes .extreme-heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    gap: 16px;
+}
+
+#extremes .extreme-heatmap-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin: 12px 10px 0;
+}
+
+#extremes .extreme-heatmap-toolbar .city-filters {
+    flex: 0 1 auto;
+    margin: 0;
+    padding-top: 5px;
+}
+
+#extremes .extreme-heatmap-toolbar .extreme-colour-legend {
+    flex: 0 1 500px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
+
+#extremes .extreme-heatmap-card h4 {
+    margin: 8px 0 4px;
+}
+
+#extremes .extreme-heatmap-card svg {
+    margin: 0 auto;
+}
+
+#extremes .extreme-storm-guide {
+    stroke: #64748b;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+    pointer-events: none;
+}
+
+#extremes .extreme-wind-line,
+#extremes .extreme-sunshine-line {
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+#extremes .extreme-missing-value {
+    font-size: 13px;
+    pointer-events: none;
+}
+
+#extremes .extreme-wind-day:focus,
+#extremes .extreme-sunshine-day:focus,
+#extremes .extreme-direction-bar:focus-visible,
+#extremes .extreme-direction-month:focus-visible,
+#extremes .extreme-rose-hit:focus-visible {
+    outline: 2px solid #0284c7;
+    outline-offset: 3px;
+}
+
+#extremes #extreme-storm-plots .extreme-chart-title {
+    margin-top: 16px;
+}
+
+#extremes .extreme-direction-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    align-items: stretch;
+    gap: 0 18px;
+}
+
+#extremes .extreme-direction-layout > :not(.extreme-direction-roses) {
+    grid-column: 1;
+    min-width: 0;
+}
+
+#extremes .extreme-direction-roses {
+    grid-column: 2;
+    grid-row: 1 / 6;
+    position: relative;
+    min-height: 0;
+}
+
+#extremes .extreme-direction-roses:has([data-view="detail"]) {
+    grid-row: 3;
+}
+
+#extremes #extremeDirectionRoses {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+#extremes .extreme-rose-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
+}
+
+#extremes .extreme-rose-card .extreme-chart {
+    min-height: 0;
+}
+
+#extremes #extremeDirectionRoses[data-view="detail"] {
+    /* Midpoint of the monthly plot: y=22 to y=345 in its 400px SVG. */
+    top: 45.875%;
+    bottom: auto;
+    transform: translateY(-50%);
+    grid-template-rows: auto;
+}
+
+#extremes #extremeDirectionRoses[data-view="detail"] .extreme-rose-card {
+    grid-template-rows: auto 210px auto;
+}
+
+#extremes .extreme-rose-card h5 {
+    margin: 0;
+    text-align: center;
+    font-size: 13px;
+}
+
+#extremes .extreme-rose-card svg {
+    width: 100%;
+    height: 100%;
+    margin: 0 auto;
+}
+
+#extremes .extreme-rose-total {
+    margin: 0;
+    text-align: center;
+    color: #475569;
+    font-size: 11px;
+}
+
+@media (max-width: 1000px) {
+    #extremes .extreme-direction-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #extremes .extreme-direction-roses,
+    #extremes .extreme-direction-roses:has([data-view="detail"]) {
+        grid-column: 1;
+        grid-row: auto;
+        margin-top: 18px;
+    }
+
+    #extremes #extremeDirectionRoses {
+        position: static;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: auto;
+    }
+
+    #extremes #extremeDirectionRoses[data-view="detail"] {
+        grid-template-columns: minmax(0, 1fr);
+        transform: none;
+    }
+
+    #extremes #extremeDirectionRoses[data-view="detail"] .extreme-rose-card {
+        grid-template-rows: auto auto auto;
+        max-width: 260px;
+        width: 100%;
+        justify-self: center;
+    }
+
+    #extremes .extreme-rose-card svg {
+        height: auto;
+    }
+}
+
+@media (max-width: 540px) {
+    #extremes #extremeDirectionRoses {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #extremes .extreme-rose-card {
+        max-width: 260px;
+        width: 100%;
+        justify-self: center;
+    }
+}
+
+#extremes .extreme-direction-segment,
+#extremes .extreme-rose-petal {
+    stroke: #fff;
+    stroke-width: 0.7;
+}
+
+#extremes .extreme-direction-bar:hover .extreme-direction-segment,
+#extremes .extreme-direction-bar:focus .extreme-direction-segment,
+#extremes .extreme-direction-month:hover .extreme-direction-segment,
+#extremes .extreme-direction-month:focus .extreme-direction-segment,
+#extremes .extreme-rose-petal[data-active="true"] {
+    stroke: #0f172a;
+    stroke-width: 1.4;
+}
+
+#extremes .extreme-direction-total {
+    fill: #475569;
+    font-size: 10px;
+    pointer-events: none;
+}
+
+#extremes .extreme-direction-city {
+    font-size: 9px;
+    font-weight: 600;
+}
+
+#extremes .extreme-rose-ring,
+#extremes .extreme-rose-spoke {
+    stroke: #cbd5e1;
+    stroke-width: 1;
+}
+
+#extremes .extreme-rose-compass {
+    fill: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#extremes .extreme-rose-tick {
+    fill: #334155;
+    stroke: #fff;
+    stroke-width: 3px;
+    paint-order: stroke;
+    font-size: 10px;
+    pointer-events: none;
+}
