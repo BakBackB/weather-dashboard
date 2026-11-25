@@ -1,0 +1,88 @@
+rows 12054 range 2015-01-01 - 2025-12-31
+missing values 0
+Da Nang missing dates 0 duplicates 0
+Hanoi missing dates 0 duplicates 0
+Ho Chi Minh City missing dates 0 duplicates 0
+tmin > tmean or tmax < tmean: 0
+
+SUMMARY
+                  tmean                            tmax                            tmin                            dtr                        
+                   mean   std   min median   max   mean   std   min median   max   mean   std   min median   max  mean   std  min median   max
+city                                                                                                                                          
+Hanoi             24.19  5.02   5.9  25.20  34.0  27.94  5.35   7.3   28.7  39.3  21.16  5.10   4.7   22.5  30.3  6.77  2.26  1.1    6.8  16.8
+Da Nang           26.24  3.17  16.9  26.40  33.3  28.86  4.06  17.5   28.7  40.2  23.98  2.83  14.7   24.5  30.7  4.88  2.03  0.6    4.8  12.4
+Ho Chi Minh City  27.52  1.32  22.5  27.35  32.5  32.11  2.11  24.2   31.8  39.3  24.27  1.34  17.8   24.4  29.3  7.83  2.08  1.3    7.6  14.1
+
+Seasonal amplitude (warmest - coldest month): {'Da Nang': 8.1, 'Hanoi': 12.4, 'Ho Chi Minh City': 2.7}
+Monthly mean T
+month               1     2     3     4     5     6     7     8     9     10    11    12
+city                                                                                    
+Hanoi             17.5  18.5  21.8  24.7  27.8  29.9  29.3  28.4  27.2  24.7  22.2  18.1
+Da Nang           21.8  22.2  24.5  26.7  28.8  30.0  29.4  29.5  28.0  26.1  24.8  22.8
+Ho Chi Minh City  26.9  27.6  28.8  29.3  28.8  27.6  27.1  27.1  26.8  26.6  26.8  26.7
+Monthly median DTR
+month              1     2     3    4    5    6    7    8    9    10   11   12
+city                                                                          
+Hanoi             7.1   6.9   6.8  7.2  6.7  7.2  6.8  6.2  6.1  6.5  6.9  6.9
+Da Nang           3.7   4.2   4.5  5.0  5.6  6.5  6.1  6.2  5.2  3.8  3.4  2.8
+Ho Chi Minh City  9.5  10.5  10.3  9.1  7.4  6.8  6.2  6.7  6.6  6.7  7.3  8.3
+
+Day-to-day |dT| mean: {'Da Nang': 0.53, 'Hanoi': 1.11, 'Ho Chi Minh City': 0.44}
+Day-to-day dT std: {'Da Nang': 0.72, 'Hanoi': 1.58, 'Ho Chi Minh City': 0.58}
+Drops of >= 4 C in one day: {'Da Nang': 4, 'Hanoi': 117, 'Ho Chi Minh City': 1}
+Days with Tmin < 15 C: {'Da Nang': 1, 'Hanoi': 585}
+
+Kruskal-Wallis Tmean H=978 p=5.5e-213 ; DTR H=3136 p=0.0e+00
+
+Correlations with DTR (Pearson r / Spearman rho):
+  Hanoi             rh      r=-0.25 rho=-0.36
+  Hanoi             sun_h   r=0.64 rho=0.64
+  Hanoi             precip  r=-0.34 rho=-0.51
+  Hanoi             daylight vs Tmean r=0.79
+  Da Nang           rh      r=-0.56 rho=-0.52
+  Da Nang           sun_h   r=0.64 rho=0.71
+  Da Nang           precip  r=-0.38 rho=-0.58
+  Da Nang           daylight vs Tmean r=0.83
+  Ho Chi Minh City  rh      r=-0.83 rho=-0.83
+  Ho Chi Minh City  sun_h   r=0.67 rho=0.67
+  Ho Chi Minh City  precip  r=-0.54 rho=-0.73
+  Ho Chi Minh City  daylight vs Tmean r=0.30
+
+Trends per decade (OLS slope, p; Mann-Kendall tau, p):
+  Hanoi             tmean -0.04 C/decade p=0.926  tau=+0.02 p=1.000
+  Hanoi             tmax  +0.27 C/decade p=0.597  tau=+0.13 p=0.648
+  Hanoi             tmin  -0.26 C/decade p=0.546  tau=-0.16 p=0.542
+  Hanoi             dtr   +0.54 C/decade p=0.078  tau=+0.49 p=0.041
+  Da Nang           tmean +0.15 C/decade p=0.673  tau=+0.09 p=0.761
+  Da Nang           tmax  +0.70 C/decade p=0.277  tau=+0.24 p=0.359
+  Da Nang           tmin  -0.35 C/decade p=0.256  tau=-0.20 p=0.445
+  Da Nang           dtr   +1.05 C/decade p=0.072  tau=+0.33 p=0.160
+  Ho Chi Minh City  tmean +0.20 C/decade p=0.508  tau=+0.13 p=0.648
+  Ho Chi Minh City  tmax  +0.83 C/decade p=0.056  tau=+0.42 p=0.087
+  Ho Chi Minh City  tmin  -0.11 C/decade p=0.678  tau=-0.09 p=0.761
+  Ho Chi Minh City  dtr   +0.95 C/decade p=0.003  tau=+0.75 p=0.001
+
+El Nino: correlation of monthly anomaly with ONI n months earlier:
+  Hanoi             lag0 0.20  lag2 0.21  lag4 0.21  lag6 0.18
+  Da Nang           lag0 0.32  lag2 0.37  lag4 0.37  lag6 0.30
+  Ho Chi Minh City  lag0 0.42  lag2 0.50  lag4 0.53  lag6 0.47
+Mean anomaly by phase (ONI 3 months earlier):
+phase             La Nina  Neutral  El Nino
+city                                       
+Hanoi               -0.30    -0.18     0.40
+Da Nang             -0.34    -0.12     0.37
+Ho Chi Minh City    -0.32    -0.08     0.30
+Rain anomaly (mm/month) by phase:
+phase             La Nina  Neutral  El Nino
+city                                       
+Hanoi                -2.8      3.9     -2.6
+Da Nang             -11.2      5.5      1.1
+Ho Chi Minh City     13.2     14.5    -25.4
+Temperature anomaly by season and phase (all cities):
+phase    La Nina  Neutral  El Nino
+season                            
+Dec-Feb    -0.38    -0.13     0.41
+Jun-Aug    -0.22    -0.04     0.16
+Mar-May    -0.38    -0.53     0.53
+Sep-Nov    -0.07    -0.06     0.22
+Months per phase: {'Neutral': 54, 'El Nino': 47, 'La Nina': 31}

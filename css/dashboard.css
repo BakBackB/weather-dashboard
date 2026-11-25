@@ -1,7 +1,10 @@
 :root {
-    --color-hcm:     #D93856; /* Red */
-    --color-hanoi:   #0284C7; /* Blue */
-    --color-danang:  #D97706; /* Amber */
+    --color-hcm: #D93856;
+    /* Red */
+    --color-hanoi: #0284C7;
+    /* Blue */
+    --color-danang: #D97706;
+    /* Amber */
 }
 
 .tabs {
@@ -31,9 +34,17 @@
     color: #fff;
 }
 
-.hcm-label input   { accent-color: var(--color-hcm); }
-.hanoi-label input { accent-color: var(--color-hanoi); }
-.danang-label input { accent-color: var(--color-danang); }
+.hcm-label input {
+    accent-color: var(--color-hcm);
+}
+
+.hanoi-label input {
+    accent-color: var(--color-hanoi);
+}
+
+.danang-label input {
+    accent-color: var(--color-danang);
+}
 
 #chart {
     display: flex;
@@ -143,6 +154,233 @@
     cursor: pointer;
 }
 
+.rainfall-city-filters {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group-label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#rainfall-chart {
+    position: relative;
+}
+
+#rainfall-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.rainfall-bar {
+    transition: filter 160ms ease, opacity 160ms ease;
+}
+
+.rainfall-bar:hover,
+.rainfall-bar:focus {
+    filter: brightness(1.12);
+    outline: none;
+}
+
+.rainfall-bar:focus-visible {
+    stroke: #0f172a;
+    stroke-width: 2px;
+}
+
+.rainfall-bar.is-zero {
+    stroke-linejoin: round;
+}
+
+.rainfall-bar.is-selected {
+    stroke: #0f172a;
+    stroke-width: 2px;
+}
+
+.rainfall-hit-area {
+    fill: transparent;
+    cursor: pointer;
+    pointer-events: all;
+}
+
+.rainfall-zero-label {
+    font-size: 10px;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.zero-bar-note {
+    fill: #64748b;
+    font-size: 11px;
+}
+
+.rainfall-empty {
+    min-height: 2rem;
+    margin: 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.rainfall-calendar-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+#rainfall-heatmap {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+#rainfall-heatmap svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+#rainfall-detail {
+    box-sizing: border-box;
+    flex: 0 0 280px;
+    padding: 14px 16px;
+    border-left: 3px solid #0284C7;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+}
+
+#rainfall-detail h4 {
+    margin: 0 0 14px;
+    color: #1e293b;
+    font-size: 16px;
+}
+
+#rainfall-detail p {
+    margin: 0 0 11px;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.rainfall-calendar-layout.detail-below {
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rainfall-calendar-layout.detail-below #rainfall-heatmap {
+    width: 100%;
+}
+
+.rainfall-calendar-layout.detail-below #rainfall-detail {
+    flex: 0 1 auto;
+    width: 100%;
+    border-top: 3px solid #0284C7;
+    border-left: 0;
+}
+
+.rainfall-tooltip {
+    z-index: 1000;
+    max-width: 240px;
+    line-height: 1.5;
+}
+
+.rainfall-duration-breakdown {
+    margin: 24px 10px;
+    padding: 18px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.rainfall-duration-breakdown h3 {
+    margin: 0 0 8px;
+    color: #2c3e50;
+    font-size: 16px;
+    text-align: center;
+}
+
+.rainfall-duration-breakdown>p {
+    max-width: 760px;
+    margin: 8px auto;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.rainfall-duration-summary {
+    color: #334155 !important;
+    font-weight: 600;
+}
+
+.rainfall-duration-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.rainfall-duration-point {
+    cursor: pointer;
+    transition: fill-opacity 140ms ease, r 140ms ease;
+}
+
+.rainfall-duration-point:hover,
+.rainfall-duration-point:focus-visible {
+    stroke: #0f172a;
+    stroke-width: 2px;
+    outline: none;
+}
+
+.tooltip-period {
+    color: #cbd5e1;
+}
+
+.chart-description {
+    max-width: 760px;
+    margin: -5px auto 12px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.precipitation-humidity-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.precipitation-line,
+.humidity-line {
+    transition: opacity 180ms ease, stroke-width 180ms ease;
+}
+
+.precipitation-humidity-hit {
+    fill: transparent;
+    pointer-events: all;
+}
+
+.precipitation-humidity-legend {
+    fill: #475569;
+    font-size: 12px;
+}
+
+.humidity-axis text {
+    fill: #64748b;
+}
+
+#rainfall-heatmap .rainfall-day {
+    transition: stroke 140ms ease, stroke-width 140ms ease;
+}
+
+#rainfall-heatmap .rainfall-day:hover {
+    stroke: #0f172a;
+    stroke-width: 2px;
+}
+
 .extreme-chart-title {
     text-align: center;
     color: #2c3e50;
@@ -158,4 +396,280 @@
 
 .extreme-chart .dot {
     cursor: default;
+}
+
+.temperature-chart-title {
+    text-align: center;
+    color: #2c3e50;
+    font-size: 16px;
+    margin: 35px 0 4px;
+}
+
+.temperature-chart-note {
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    margin: 0 0 10px;
+}
+
+.temperature-chart svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.temperature-select {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    font: inherit;
+    font-size: 13px;
+}
+
+/* Year slider with clickable labels ("All", '15 … '25) */
+.temperature-year-slider {
+    display: flex;
+    flex-direction: column;
+    width: 360px;
+    max-width: 100%;
+}
+
+.temperature-year-slider input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    margin: 6px 0;
+    border-radius: 999px;
+    background: linear-gradient(to right, #0284c7 var(--fill, 0%), #e2e8f0 var(--fill, 0%));
+    cursor: pointer;
+    outline: none;
+}
+
+.temperature-year-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #0284c7;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.temperature-year-slider input[type="range"]:hover::-webkit-slider-thumb {
+    transform: scale(1.15);
+}
+
+.temperature-year-slider input[type="range"]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.2);
+}
+
+.temperature-year-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin: 2px -4px 0;
+}
+
+.temperature-year-ticks button {
+    width: 26px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #64748b;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* While "All years" is active the slider is grey. */
+.temperature-year-slider.inactive input[type="range"] {
+    background: #e2e8f0;
+}
+
+.temperature-year-slider.inactive input[type="range"]::-webkit-slider-thumb {
+    border-color: #94a3b8;
+}
+
+.temperature-year-ticks button:hover {
+    color: #0284c7;
+}
+
+.temperature-year-ticks button.active {
+    color: #0284c7;
+    font-weight: 700;
+}
+
+.temperature-year-value {
+    min-width: 64px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.temperature-filter-bar {
+    justify-content: flex-start;
+}
+
+.temperature-filters {
+    margin-bottom: 20px;
+    padding: 6px 0 4px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.temperature-filters .controls {
+    margin-bottom: 8px;
+}
+
+.temperature-filters-note {
+    text-align: left;
+    padding: 0 10px;
+}
+
+.temperature-season-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.temperature-season {
+    padding: 5px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.temperature-season:hover {
+    background: #f1f5f9;
+}
+
+.temperature-season.active {
+    border-color: #2c3e50;
+    background: #2c3e50;
+    color: #fff;
+}
+
+.temperature-detail {
+    margin: 4px 10px 0;
+    padding: 0 14px;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.temperature-detail:not(:empty) {
+    padding: 10px 14px 12px;
+}
+
+.temperature-detail p {
+    margin: 0 0 8px;
+}
+
+.temperature-detail-table {
+    margin-bottom: 8px;
+    border-collapse: collapse;
+}
+
+.temperature-detail-table th,
+.temperature-detail-table td {
+    padding: 2px 14px 2px 0;
+    text-align: left;
+}
+
+.temperature-detail-table th {
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Drill-down path of "A Typical Year", e.g. "All years › April › 2019" */
+.temperature-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0 8px;
+    font-size: 14px;
+}
+
+.temperature-path-step {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #0284c7;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.temperature-path-step:hover {
+    text-decoration: underline;
+}
+
+.temperature-path-sep {
+    color: #94a3b8;
+}
+
+.temperature-path-current {
+    font-weight: 600;
+    color: #334155;
+}
+
+/* Previous / next month in the day view */
+.temperature-path-arrow {
+    padding: 2px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #334155;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.temperature-path-arrow-first {
+    margin-left: 12px;
+}
+
+.temperature-path-arrow:hover:not(:disabled) {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+.temperature-path-arrow:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+@media (max-width: 760px) {
+    .rainfall-calendar-layout {
+        flex-direction: column;
+    }
+
+    #rainfall-heatmap {
+        width: 100%;
+    }
+
+    #rainfall-detail {
+        flex: 1 1 auto;
+        width: 100%;
+        border-top: 3px solid #0284C7;
+        border-left: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rainfall-bar,
+    .rainfall-duration-point,
+    .precipitation-line,
+    .humidity-line,
+    #rainfall-heatmap .rainfall-day {
+        transition: none;
+    }
 }
