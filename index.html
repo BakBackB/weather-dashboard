@@ -86,13 +86,40 @@
                     <button id="rainfallBackButton" class="back-btn">← Back</button>
                     <span id="rainfallViewLabel" class="view-label"></span>
                 </div>              
+                <div id="rainfallCityFilters" class="city-filters rainfall-city-filters" role="group" aria-label="Filter rainfall charts by city">
+                    <span class="filter-group-label">Show cities:</span>
+                    <label class="filter-label hanoi-label">
+                        <input type="checkbox" value="Hanoi" checked> Hanoi
+                    </label>
+                    <label class="filter-label danang-label">
+                        <input type="checkbox" value="Da Nang" checked> Da Nang
+                    </label>
+                    <label class="filter-label hcm-label">
+                        <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
+                    </label>
+                </div>
             </div>
             <div id="rainfall-chart"></div>
 
-            <h3>Daily Rainfall Calendar</h3>
-            <div id="rainfall-heatmap"></div>
+            <section id="rainfall-duration-breakdown" class="rainfall-duration-breakdown" hidden>
+                <h3>Daily Rainfall Amount vs. Duration</h3>
+                <p>Each point is one day in the selected month. Farther right means more rainfall; higher means more hours of rain. High rainfall over few hours suggests a brief, intense event; moderate rainfall over many hours suggests persistent rain. The selected day is highlighted.</p>
+                <p id="rainfall-duration-summary" class="rainfall-duration-summary"></p>
+                <div id="rainfall-duration-chart" class="rainfall-duration-chart"></div>
+            </section>
 
+            <h3>Daily Rainfall Calendar</h3>
+            <div class="rainfall-calendar-layout">
+            <div id="rainfall-heatmap"></div>
             <aside id="rainfall-detail" hidden></aside>
+            </div>
+
+            <h3 class="extreme-chart-title">Synchronized Precipitation–Humidity Trend</h3>
+            <p class="chart-description">Color identifies city. Solid lines show precipitation (mm); dashed lines show humidity (%). 
+                The precipitation and humidity values for each month in the original chart represent the averages for that specific month over the period from 2015 to 2025.
+                For monthly data, the values are averages of each day's measurements. (Example: the value of precipitation and humidity of June, 2020 is the average of all
+                dates in that month)</p>
+            <div id="precipitation-humidity-chart" class="precipitation-humidity-chart"></div>
         </section>
 
         <section id="extremes" class="tab-panel" hidden>

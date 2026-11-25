@@ -31,6 +31,7 @@ async function loadWeatherData() {
                 humidity: Number(d.relative_humidity_2m_mean),
                 sunshineHours: Number(d.sunshine_duration) / 3600,
                 precipitation: Number(d.precipitation_sum),
+                relativeHumidityMean: Number(d.relative_humidity_2m_mean),
                 precipitationHours: Number(d.precipitation_hours),
             };
         }).filter(d => d.date !== null && !isNaN(d.tempMean));
