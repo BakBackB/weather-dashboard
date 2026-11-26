@@ -185,7 +185,7 @@ Interactive Correlation Dashboard featuring:
 
 ---
 
-# Project Structure
+# Initial Project Structure
 
 ```
 weather-dashboard/
