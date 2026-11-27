@@ -172,9 +172,17 @@ body.dashboard-page {
     font-weight: 600;
 }
 
-.kpi-trend.up { color: #b91c1c; }
-.kpi-trend.down { color: #0369a1; }
-.kpi-trend.flat { color: var(--dash-muted); }
+.kpi-trend.up {
+    color: #b91c1c;
+}
+
+.kpi-trend.down {
+    color: #0369a1;
+}
+
+.kpi-trend.flat {
+    color: var(--dash-muted);
+}
 
 /* ---------- Section bands (one per research question) ---------- */
 .band {
@@ -188,9 +196,17 @@ body.dashboard-page {
     color: #fff;
 }
 
-.band-temperature { --band: var(--band-temperature); }
-.band-rainfall { --band: var(--band-rainfall); }
-.band-extremes { --band: var(--band-extremes); }
+.band-temperature {
+    --band: var(--band-temperature);
+}
+
+.band-rainfall {
+    --band: var(--band-rainfall);
+}
+
+.band-extremes {
+    --band: var(--band-extremes);
+}
 
 .band-tag {
     padding: 4px 10px;
@@ -325,8 +341,8 @@ body.dashboard-page {
 }
 
 #extremes .card-wide #extreme-storm-plots,
-#extremes .card-wide #extreme-storm-plots + .extreme-zoom-row,
-#extremes .card-wide #extreme-storm-plots + .extreme-zoom-row + .controls {
+#extremes .card-wide #extreme-storm-plots+.extreme-zoom-row,
+#extremes .card-wide #extreme-storm-plots+.extreme-zoom-row+.controls {
     max-width: 1150px;
     margin-left: auto;
     margin-right: auto;
@@ -337,7 +353,7 @@ body.dashboard-page {
 }
 
 /* Placeholder shown by the calendar until a bar is clicked. */
-.card #rainfall-heatmap > p {
+.card #rainfall-heatmap>p {
     margin: 0;
     padding: 14px 0;
     color: var(--dash-muted);
@@ -387,8 +403,13 @@ body.dashboard-page {
     cursor: pointer;
 }
 
-.dash-pill:hover { background: rgba(56, 189, 248, 0.3); }
-.dash-pill[hidden] { display: none; }
+.dash-pill:hover {
+    background: rgba(56, 189, 248, 0.3);
+}
+
+.dash-pill[hidden] {
+    display: none;
+}
 
 .gc-row {
     display: flex;
@@ -426,7 +447,9 @@ body.dashboard-page {
     cursor: pointer;
 }
 
-.chip:hover { border-color: #94a3b8; }
+.chip:hover {
+    border-color: #94a3b8;
+}
 
 .chip.active {
     border-color: #0284C7;
@@ -434,21 +457,59 @@ body.dashboard-page {
     color: #fff;
 }
 
-.chip-city { border-color: var(--chip-color); color: var(--chip-color); }
-.chip-city.active { background: var(--chip-color); border-color: var(--chip-color); color: #fff; }
+.chip-city {
+    border-color: var(--chip-color);
+    color: var(--chip-color);
+}
 
-.gc-timeline svg { display: block; width: 100%; height: auto; }
-.gc-summary { margin: 4px 0 0; color: var(--dash-muted); font-size: 12px; }
+.chip-city.active {
+    background: var(--chip-color);
+    border-color: var(--chip-color);
+    color: #fff;
+}
 
-.kpi-scope { margin: 0 0 8px; color: var(--dash-muted); font-size: 12px; }
-.kpi-city.is-off { opacity: 0.4; }
+.gc-timeline svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
 
-.band-correlation { --band: #6d28d9; }
+.gc-summary {
+    margin: 4px 0 0;
+    color: var(--dash-muted);
+    font-size: 12px;
+}
+
+.kpi-scope {
+    margin: 0 0 8px;
+    color: var(--dash-muted);
+    font-size: 12px;
+}
+
+.kpi-city.is-off {
+    opacity: 0.4;
+}
+
+.band-correlation {
+    --band: #6d28d9;
+}
 
 /* Calendar side by side */
-.calendar-compare-note { margin: 0 0 6px; color: var(--dash-muted); font-size: 12px; }
-.calendar-compare .rainfall-day.compare-hover { stroke: #0f172a; stroke-width: 1.5; }
-.rainfall-calendar-layout svg.calendar-compare { max-width: 100%; height: auto; }
+.calendar-compare-note {
+    margin: 0 0 6px;
+    color: var(--dash-muted);
+    font-size: 12px;
+}
+
+.calendar-compare .rainfall-day.compare-hover {
+    stroke: #0f172a;
+    stroke-width: 1.5;
+}
+
+.rainfall-calendar-layout svg.calendar-compare {
+    max-width: 100%;
+    height: auto;
+}
 
 #gcReset {
     margin-left: auto;
@@ -461,4 +522,6 @@ body.dashboard-page {
     cursor: pointer;
 }
 
-#gcReset:hover { background: #f1f5f9; }
+#gcReset:hover {
+    background: #f1f5f9;
+}

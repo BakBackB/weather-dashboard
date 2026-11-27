@@ -4,6 +4,76 @@ const EXTREME_WIND_DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const EXTREME_HOT_THRESHOLD = 35;
 const EXTREME_RAIN_THRESHOLD = 50;
 
+// Cold days use the daily MEAN temperature (the basis of the Vietnamese cold-spell categories).
+//   Bitterly cold      15 °C ≤ T ≤ 20 °C      Severe cold  13 °C ≤ T < 15 °C      Damaging cold  T < 13 °C
+// "anyColdDays" = the three together (T ≤ 20 °C). Every level has its own count field.
+const EXTREME_COLD_LEVELS = [
+    {
+        id: "anyCold", field: "anyColdDays", button: "All cold days (≤20°C)", title: "Cold days (≤20°C)", range: "≤ 20°C",
+        test: t => t <= 20
+    },
+    {
+        id: "cold", field: "coldDays", button: "Bitterly cold (15–20°C)", title: "Bitterly cold (15–20°C)", range: "from 15 to 20°C",
+        test: t => t >= 15 && t <= 20
+    },
+    {
+        id: "severeCold", field: "severeColdDays", button: "Severe cold (13–15°C)", title: "Severe cold (13–15°C)", range: "from 13 to below 15°C",
+        test: t => t >= 13 && t < 15
+    },
+    {
+        id: "harshCold", field: "harshColdDays", button: "Damaging cold (<13°C)", title: "Damaging cold (<13°C)", range: "below 13°C",
+        test: t => t < 13
+    }
+];
+
+// What the "Conditions around …" panel looks at: heavy rain days or one of the cold levels.
+const EXTREME_EVENT_TYPES = [
+    {
+        id: "rain", button: "Heavy rain (>50 mm)", title: "Heavy Rainfall", noun: "heavy rainfall days",
+        empty: "No days with rainfall above 50 mm in this range.", note: "Only days with rainfall >50 mm.",
+        test: row => Number.isFinite(row.precipitation) && row.precipitation > EXTREME_RAIN_THRESHOLD
+    },
+    ...EXTREME_COLD_LEVELS.map(level => ({
+        id: level.id, button: level.button, title: level.title, noun: `${level.title} days`,
+        empty: `No ${level.title} days in this range.`,
+        note: `Only days with daily mean temperature ${level.range}.`,
+        test: row => Number.isFinite(row.tempMean) && level.test(row.tempMean)
+    }))
+];
+let extremeActiveEventType = EXTREME_EVENT_TYPES[0];
+function setExtremeEventType(id) {
+    extremeActiveEventType = EXTREME_EVENT_TYPES.find(type => type.id === id) || EXTREME_EVENT_TYPES[0];
+    return extremeActiveEventType;
+}
+
+// Zero counts for one city-year (or month) and the update for one observed day.
+function extremeEmptyCounts() {
+    const counts = { hotDays: 0, heavyRainDays: 0 };
+    EXTREME_COLD_LEVELS.forEach(level => { counts[level.field] = 0; });
+    return counts;
+}
+function extremeAddDay(counts, row) {
+    if (Number.isFinite(row.tempMax) && row.tempMax > EXTREME_HOT_THRESHOLD) counts.hotDays += 1;
+    if (Number.isFinite(row.precipitation) && row.precipitation > EXTREME_RAIN_THRESHOLD) counts.heavyRainDays += 1;
+    if (Number.isFinite(row.tempMean)) {
+        EXTREME_COLD_LEVELS.forEach(level => { if (level.test(row.tempMean)) counts[level.field] += 1; });
+    }
+}
+
+// Segmented control used by the cold cards and the conditions panel.
+function extremeBuildSegmented(containerId, items, activeId, onChange) {
+    const host = d3.select(`#${containerId}`);
+    host.selectAll("*").remove();
+    host.attr("class", "corr-segment extreme-segment").attr("role", "group");
+    host.selectAll("button").data(items).join("button")
+        .attr("type", "button").attr("data-id", item => item.id)
+        .classed("active", item => item.id === activeId).text(item => item.button)
+        .on("click", function (event, item) {
+            host.selectAll("button").classed("active", other => other.id === item.id);
+            onChange(item);
+        });
+}
+
 function extremeCityColorScale() {
     const styles = getComputedStyle(document.documentElement);
     return d3.scaleOrdinal().domain(EXTREME_CITIES).range([
@@ -19,10 +89,8 @@ function getAnnualExtremeData(rows = rawParsedWeather) {
     rows.forEach(row => {
         const year = Number(row.year);
         const key = `${row.city}-${year}`;
-        if (!groups.has(key)) groups.set(key, { city: row.city, year, hotDays: 0, heavyRainDays: 0 });
-        const counts = groups.get(key);
-        if (Number.isFinite(row.tempMax) && row.tempMax > EXTREME_HOT_THRESHOLD) counts.hotDays += 1;
-        if (Number.isFinite(row.precipitation) && row.precipitation > EXTREME_RAIN_THRESHOLD) counts.heavyRainDays += 1;
+        if (!groups.has(key)) groups.set(key, { city: row.city, year, ...extremeEmptyCounts() });
+        extremeAddDay(groups.get(key), row);
     });
     return Array.from(groups.values()).sort((a, b) => a.year - b.year);
 }
@@ -36,12 +104,10 @@ function getMonthlyExtremeData(rows = rawParsedWeather) {
         const key = `${row.city}-${year}`;
         if (!groups.has(key)) {
             groups.set(key, Array.from({ length: 12 }, (_, month) => ({
-                city: row.city, year, month, hotDays: 0, heavyRainDays: 0
+                city: row.city, year, month, ...extremeEmptyCounts()
             })));
         }
-        const counts = groups.get(key)[row.date.getMonth()];
-        if (Number.isFinite(row.tempMax) && row.tempMax > EXTREME_HOT_THRESHOLD) counts.hotDays += 1;
-        if (Number.isFinite(row.precipitation) && row.precipitation > EXTREME_RAIN_THRESHOLD) counts.heavyRainDays += 1;
+        extremeAddDay(groups.get(key)[row.date.getMonth()], row);
     });
     return Array.from(groups.values()).flat().sort((a, b) => a.year - b.year || a.month - b.month);
 }
@@ -91,7 +157,7 @@ function extremeInitCityFilters(id, onChange) {
         .attr("class", "filter-label");
     labels.append("input").attr("type", "checkbox").attr("value", d => d)
         .property("checked", true).style("accent-color", d => color(d))
-        .on("change", function(event, city) {
+        .on("change", function (event, city) {
             if (this.checked) selected.add(city);
             else selected.delete(city);
             onChange();
@@ -143,10 +209,12 @@ function getExtremeHeatmapCells(rows) {
 }
 
 // Keep daily observations unchanged; missing wind/sunshine values remain unavailable.
-function getExtremeStormEvents(rows, range) {
+// The kind of day (heavy rain or a cold level) is the one chosen in the "Conditions around" panel.
+// useFilters = false skips the dashboard season / box filter (used to build the full-period overview).
+function getExtremeStormEvents(rows, range, useFilters = true) {
     return rows.filter(row => Number.isFinite(row.date?.getTime()) &&
-        row.date >= range[0] && row.date <= range[1] && DashSync.inSeason(row) &&
-        Number.isFinite(row.precipitation) && row.precipitation > EXTREME_RAIN_THRESHOLD)
+        row.date >= range[0] && row.date <= range[1] && (!useFilters || DashSync.inSeason(row)) &&
+        extremeActiveEventType.test(row))
         .sort((a, b) => a.date - b.date);
 }
 

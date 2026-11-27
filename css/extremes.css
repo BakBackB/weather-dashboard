@@ -11,7 +11,7 @@
     margin: 8px 10px 15px;
 }
 
-#extremes .controls > .city-filters {
+#extremes .controls>.city-filters {
     margin: 0;
 }
 
@@ -54,7 +54,7 @@
     gap: 16px;
 }
 
-#extremes .extreme-chart-layout > .extreme-chart,
+#extremes .extreme-chart-layout>.extreme-chart,
 #extremes .extreme-overview {
     flex: 1;
     min-width: 0;
@@ -326,7 +326,7 @@
     gap: 0 18px;
 }
 
-#extremes .extreme-direction-layout > :not(.extreme-direction-roses) {
+#extremes .extreme-direction-layout> :not(.extreme-direction-roses) {
     grid-column: 1;
     min-width: 0;
 }
@@ -483,4 +483,25 @@
     paint-order: stroke;
     font-size: 10px;
     pointer-events: none;
+}
+
+
+
+/* ===== Cold days: level selector and the "days shown" switch ===== */
+#extremes .extreme-level-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0 0 12px;
+    padding: 0 10px;
+}
+
+#extremes .extreme-segment {
+    flex-wrap: wrap;
+    border-radius: 12px;
+}
+
+#extremes .extreme-segment button {
+    font-size: 12.5px;
 }

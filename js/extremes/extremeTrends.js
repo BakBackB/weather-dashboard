@@ -15,12 +15,13 @@ function drawExtremeTrends() {
         .attr("class", "tooltip extreme-tooltip")
         .style("opacity", 0);
 
-    function drawChart(container, field, eventLabel, filters) {
+    // idBase names the page elements of this chart (…ChangeThreshold, …Brush, …); field may change later (setLevel).
+    function drawChart(container, field, eventLabel, filters, idBase = field) {
         let selectedYears = fullYears.slice();
-        const thresholdInput = document.getElementById(`${field}ChangeThreshold`);
+        const thresholdInput = document.getElementById(`${idBase}ChangeThreshold`);
         // Compute changes before zooming so the first visible year keeps its true comparison.
         let chartData = getAnnualExtremeChanges(data, field);
-        const sourceName = `trend-${field}`;
+        const sourceName = `trend-${idBase}`;
         const visibleCities = new Set(cities);
         const svg = d3.select(container).append("svg")
             .attr("width", 850)
@@ -109,7 +110,7 @@ function drawExtremeTrends() {
                 .attr("x1", 0).attr("x2", width)
                 .attr("y1", d => y(d)).attr("y2", d => y(d));
             svg.selectAll(".extreme-city")
-                .style("display", function() { return visibleCities.has(this.dataset.city) ? null : "none"; });
+                .style("display", function () { return visibleCities.has(this.dataset.city) ? null : "none"; });
             svg.selectAll(".extreme-city .line")
                 .attr("d", rows => line(rows.filter(inRange)));
             svg.selectAll(".extreme-city .dot")
@@ -140,7 +141,7 @@ function drawExtremeTrends() {
                 .attr("fill", d => color(d.city))
                 .text(d => `${formatChange(d.change)} days`);
 
-            document.getElementById(`${field}YearRange`).textContent =
+            document.getElementById(`${idBase}YearRange`).textContent =
                 `Showing ${selectedYears[0]}–${selectedYears[1]}`;
             tooltip.style("opacity", 0);
         }
@@ -155,7 +156,7 @@ function drawExtremeTrends() {
             });
         });
 
-        const overview = d3.select(`#${field}Brush`).append("svg")
+        const overview = d3.select(`#${idBase}Brush`).append("svg")
             .attr("width", 850).attr("height", 110)
             .attr("viewBox", "0 0 850 110")
             .append("g").attr("transform", `translate(${margin.left},20)`);
@@ -189,7 +190,7 @@ function drawExtremeTrends() {
             });
         const brushGroup = overview.append("g").attr("class", "extreme-brush").call(brush);
 
-        document.getElementById(`${field}ResetZoom`).addEventListener("click", () => {
+        document.getElementById(`${idBase}ResetZoom`).addEventListener("click", () => {
             selectedYears = fullYears.slice();
             brushGroup.call(brush.move, null);
             updateChart();
@@ -210,20 +211,40 @@ function drawExtremeTrends() {
         function applySeason() {
             chartData = getAnnualExtremeChanges(data, field);
             overviewY.domain([0, d3.max(data, d => d[field]) || 1]);
-            overview.selectAll(".extreme-overview-city").each(function() {
+            overview.selectAll(".extreme-overview-city").each(function () {
                 d3.select(this).datum(data.filter(d => d.city === this.dataset.city))
                     .attr("d", d3.line().x(d => overviewX(d.year)).y(d => overviewY(d[field])));
             });
             updateChart();
         }
+        // Switch the counted quantity (cold level) without redrawing the whole card.
+        function setLevel(level) {
+            field = level.field;
+            eventLabel = level.title;
+            d3.select(container).select("svg").attr("aria-label", `${eventLabel} per year across three cities`);
+            applySeason();
+        }
         updateChart();
-        return { sourceName, applyGlobalRange, applySeason };
+        return { sourceName, applyGlobalRange, applySeason, setLevel };
     }
 
+    const coldLevel = EXTREME_COLD_LEVELS[0];
     const charts = [
         drawChart("#hot-days-chart", "hotDays", "Hot days", "#extremeCityFilters"),
-        drawChart("#heavy-rain-days-chart", "heavyRainDays", "Heavy rainfall days", "#heavyRainCityFilters")
+        drawChart("#heavy-rain-days-chart", "heavyRainDays", "Heavy rainfall days", "#heavyRainCityFilters"),
+        drawChart("#cold-days-chart", coldLevel.field, coldLevel.title, "#coldCityFilters", "coldDays")
     ];
+    // The cold level chosen in the cold-days control drives this chart and the frequency chart.
+    document.addEventListener("extremecoldlevel", event => {
+        // Rarer levels need a smaller "highlight changes" step to be useful.
+        const step = { anyCold: 20, cold: 15, severeCold: 5, harshCold: 3 }[event.detail.id];
+        if (step) document.getElementById("coldDaysChangeThreshold").value = step;
+        charts[2].setLevel(event.detail);
+        const title = document.getElementById("coldTrendTitle");
+        if (title) title.textContent = `Annual ${event.detail.title}`;
+    });
+    extremeBuildSegmented("extremeColdLevel", EXTREME_COLD_LEVELS, coldLevel.id,
+        level => document.dispatchEvent(new CustomEvent("extremecoldlevel", { detail: level })));
     DashSync.on(detail => {
         if (detail.source === "init") return;
         if (detail.keys.includes("quarter") || detail.keys.includes("condition")) {

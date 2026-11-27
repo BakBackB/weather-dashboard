@@ -12,9 +12,12 @@ function drawExtremeFrequency() {
     const tooltip = extremeCreateTooltip();
     const panels = [
         { container: "#extreme-frequency-hot", path: "#extreme-frequency-hot-path", field: "hotDays", label: "Hot days (>35°C)", selected: null, restore: null },
-        { container: "#extreme-frequency-rain", path: "#extreme-frequency-rain-path", field: "heavyRainDays", label: "Heavy rainfall days (>50 mm)", selected: null, restore: null }
+        { container: "#extreme-frequency-rain", path: "#extreme-frequency-rain-path", field: "heavyRainDays", label: "Heavy rainfall days (>50 mm)", selected: null, restore: null },
+        // Cold days: field and label follow the cold level control (extremecoldlevel event below).
+        { container: "#extreme-frequency-cold", path: "#extreme-frequency-cold-path", field: EXTREME_COLD_LEVELS[0].field,
+          label: EXTREME_COLD_LEVELS[0].title, source: "cold-frequency", selected: null, restore: null }
     ];
-    ["#extremeFrequencyLegend", "#extremeRainFrequencyLegend"].forEach(container => {
+    ["#extremeFrequencyLegend", "#extremeRainFrequencyLegend", "#extremeColdFrequencyLegend"].forEach(container => {
         extremeDrawLegend(container, cities, color, "extreme-frequency");
     });
 
@@ -35,7 +38,7 @@ function drawExtremeFrequency() {
                 .on("click", event => {
                     panel.selected = null;
                     // Back from a drill-down: return to the time window that was set before it.
-                    if (panel.restore) DashSync.setRange(panel.restore, panel.field);
+                    if (panel.restore) DashSync.setRange(panel.restore, panel.source || panel.field);
                     panel.restore = null;
                     drawPanel(panel);
                     if (event.detail === 0) {
@@ -100,7 +103,7 @@ function drawExtremeFrequency() {
                 // Drilling into a year makes that year the global time window.
                 panel.restore = DashSync.range();
                 panel.selected = d;
-                DashSync.setYear(d.year, panel.field);
+                DashSync.setYear(d.year, panel.source || panel.field);
                 drawPanel(panel);
                 if (event.type === "keydown") {
                     d3.select(path).selectAll("button").node()?.focus();
@@ -116,12 +119,21 @@ function drawExtremeFrequency() {
     }
     panels.forEach(drawPanel);
 
+    document.addEventListener("extremecoldlevel", event => {
+        const panel = panels[2];
+        panel.field = event.detail.field;
+        panel.label = event.detail.title;
+        const title = document.getElementById("coldFrequencyTitle");
+        if (title) title.textContent = `Number of ${event.detail.title}`;
+        drawPanel(panel);
+    });
+
     // Follow the global time window and season set by any other chart.
     DashSync.on(detail => {
         if (detail.source === "init") return;
         if (detail.keys.includes("quarter") || detail.keys.includes("condition")) annualSeason = getAnnualExtremeData(DashSync.rowsInSeason());
         const [first, last] = DashSync.years();
-        panels.filter(panel => panel.field !== detail.source).forEach(panel => {
+        panels.filter(panel => (panel.source || panel.field) !== detail.source).forEach(panel => {
             // A drill-down to a year that left the time window closes.
             if (panel.selected && (panel.selected.year < first || panel.selected.year > last)) {
                 panel.selected = null;

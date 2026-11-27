@@ -1,404 +1,777 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Dashboard – Cross-Regional Weather Dynamics in Vietnam</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Weather Dashboard – Cross-Regional Weather Dynamics in Vietnam
+    </title>
     <!-- Favicon -->
-    <link rel="icon" href="assets/icons/meteorology.png" type="image/png">
+    <link rel="icon" href="assets/icons/meteorology.png" type="image/png" />
     <!-- Stylesheets: the three panels' own CSS is reused unchanged -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/extremes.css">
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/extremes.css" />
     <!-- Layout of this one-page dashboard (cards, KPI row, grid) -->
-    <link rel="stylesheet" href="css/dashboard-page.css">
-    <link rel="stylesheet" href="css/correlation.css">
+    <link rel="stylesheet" href="css/dashboard-page.css" />
+    <link rel="stylesheet" href="css/correlation.css" />
     <!-- Load D3.js v7 -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-</head>
-<body class="dashboard-page">
-
+  </head>
+  <body class="dashboard-page">
     <!-- ===== Header ===== -->
     <header class="dash-header">
-        <div class="dash-header-inner">
-            <div class="dash-title">
-                <h1>Cross-Regional Weather Dynamics in Vietnam</h1>
-                <p id="dashMeta">Hanoi · Da Nang · Ho Chi Minh City · daily data from Open-Meteo</p>
-            </div>
-            <button id="dashFilterPill" class="dash-pill" type="button" hidden title="Clear all filters"></button>
-            <nav class="dash-nav" aria-label="Dashboard sections">
-                <a href="#controls" data-spy="controls">Overview</a>
-                <a href="#temperature" data-spy="temperature">Temperature</a>
-                <a href="#rainfall" data-spy="rainfall">Rainfall</a>
-                <a href="#extremes" data-spy="extremes">Extreme weather</a>
-                <a href="#correlation" data-spy="correlation">Explore</a>
-            </nav>
+      <div class="dash-header-inner">
+        <div class="dash-title">
+          <h1>Cross-Regional Weather Dynamics in Vietnam</h1>
+          <p id="dashMeta">
+            Hanoi · Da Nang · Ho Chi Minh City · daily data from Open-Meteo
+          </p>
         </div>
+        <button
+          id="dashFilterPill"
+          class="dash-pill"
+          type="button"
+          hidden
+          title="Clear all filters"
+        ></button>
+        <nav class="dash-nav" aria-label="Dashboard sections">
+          <a href="#controls" data-spy="controls">Overview</a>
+          <a href="#temperature" data-spy="temperature">Temperature</a>
+          <a href="#rainfall" data-spy="rainfall">Rainfall</a>
+          <a href="#extremes" data-spy="extremes">Extreme weather</a>
+          <a href="#correlation" data-spy="correlation">Explore</a>
+        </nav>
+      </div>
     </header>
 
     <main class="dash">
+      <!-- ===== Global filters: one shared state for every chart (js/dashboardSync.js) ===== -->
+      <section id="controls" class="dash-section" aria-label="Global filters">
+        <article class="card card-wide controls-card">
+          <header class="card-head">
+            <h3>Global filters</h3>
+            <p>
+              Drag on the timeline, click a year, or pick a season or cities.
+              Every chart follows, and a brush or a drill-down in any chart
+              updates this bar too. Shift-click a year to extend the window.
+            </p>
+          </header>
+          <div class="gc-row">
+            <div class="gc-group">
+              <span class="gc-label">Year</span>
+              <div id="gcYears" class="chip-row"></div>
+            </div>
+            <div class="gc-group">
+              <span class="gc-label">Season</span>
+              <div id="gcSeasons" class="chip-row"></div>
+            </div>
+            <div class="gc-group">
+              <span class="gc-label">Cities</span>
+              <div id="gcCities" class="chip-row"></div>
+            </div>
+            <button id="gcReset" class="extreme-reset" type="button">
+              Reset all
+            </button>
+          </div>
+          <div id="gcTimeline" class="gc-timeline"></div>
+          <p id="gcSummary" class="gc-summary" aria-live="polite"></p>
+        </article>
+      </section>
 
-        <!-- ===== Global filters: one shared state for every chart (js/dashboardSync.js) ===== -->
-        <section id="controls" class="dash-section" aria-label="Global filters">
-            <article class="card card-wide controls-card">
-                <header class="card-head">
-                    <h3>Global filters</h3>
-                    <p>Drag on the timeline, click a year, or pick a season or cities. Every chart follows, and a brush or a drill-down in any chart updates this bar too. Shift-click a year to extend the window.</p>
-                </header>
-                <div class="gc-row">
-                    <div class="gc-group"><span class="gc-label">Year</span><div id="gcYears" class="chip-row"></div></div>
-                    <div class="gc-group"><span class="gc-label">Season</span><div id="gcSeasons" class="chip-row"></div></div>
-                    <div class="gc-group"><span class="gc-label">Cities</span><div id="gcCities" class="chip-row"></div></div>
-                    <button id="gcReset" class="extreme-reset" type="button">Reset all</button>
+      <!-- ===== KPI scorecard (filled by js/dashboard.js; follows the global filters) ===== -->
+      <section id="kpis" class="dash-section" aria-label="Key figures by city">
+        <p id="kpiScope" class="kpi-scope"></p>
+        <div id="kpiRow" class="kpi-row">
+          <p class="kpi-loading">Loading data…</p>
+        </div>
+      </section>
+
+      <!-- ===== RQ1: Temperature ===== -->
+      <section id="temperature" class="dash-section">
+        <div class="band band-temperature">
+          <span class="band-tag">RQ1</span>
+          <div>
+            <h2>Temperature Dynamics &amp; Variations</h2>
+            <p>
+              How do temperatures and daily temperature changes compare across
+              the three cities?
+            </p>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <article class="card card-wide card-filters">
+            <header class="card-head">
+              <h3>Filters</h3>
+              <p>
+                Apply to every temperature chart below. The El Niño timeline
+                zooms to the selected year; the season filter does not apply to
+                it.
+              </p>
+            </header>
+            <div class="temperature-filters">
+              <div class="controls temperature-filter-bar">
+                <span class="view-label">Cities:</span>
+                <div id="cityFilters" class="city-filters">
+                  <label class="filter-label hanoi-label">
+                    <input type="checkbox" value="Hanoi" checked /> Hanoi
+                  </label>
+                  <label class="filter-label danang-label">
+                    <input type="checkbox" value="Da Nang" checked /> Da Nang
+                  </label>
+                  <label class="filter-label hcm-label">
+                    <input type="checkbox" value="Ho Chi Minh City" checked />
+                    Ho Chi Minh City
+                  </label>
                 </div>
-                <div id="gcTimeline" class="gc-timeline"></div>
-                <p id="gcSummary" class="gc-summary" aria-live="polite"></p>
-            </article>
-        </section>
-
-        <!-- ===== KPI scorecard (filled by js/dashboard.js; follows the global filters) ===== -->
-        <section id="kpis" class="dash-section" aria-label="Key figures by city">
-            <p id="kpiScope" class="kpi-scope"></p>
-            <div id="kpiRow" class="kpi-row">
-                <p class="kpi-loading">Loading data…</p>
-            </div>
-        </section>
-
-        <!-- ===== RQ1: Temperature ===== -->
-        <section id="temperature" class="dash-section">
-            <div class="band band-temperature">
-                <span class="band-tag">RQ1</span>
-                <div>
-                    <h2>Temperature Dynamics &amp; Variations</h2>
-                    <p>How do temperatures and daily temperature changes compare across the three cities?</p>
+              </div>
+              <div class="controls temperature-filter-bar">
+                <label class="view-label" for="temperatureYear">Year:</label>
+                <button
+                  id="temperatureAllYears"
+                  class="temperature-season"
+                  type="button"
+                >
+                  All years
+                </button>
+                <div id="temperatureYearSlider" class="temperature-year-slider">
+                  <input type="range" id="temperatureYear" step="1" />
+                  <div
+                    id="temperatureYearTicks"
+                    class="temperature-year-ticks"
+                  ></div>
                 </div>
+                <output
+                  id="temperatureYearValue"
+                  class="temperature-year-value"
+                  for="temperatureYear"
+                ></output>
+              </div>
+              <div class="controls temperature-filter-bar">
+                <span class="view-label">Season:</span>
+                <div
+                  id="temperatureSeasonFilter"
+                  class="temperature-season-filter"
+                  role="group"
+                  aria-label="Season filter"
+                ></div>
+              </div>
             </div>
+          </article>
 
-            <div class="dash-grid">
-                <article class="card card-wide card-filters">
-                    <header class="card-head">
-                        <h3>Filters</h3>
-                        <p>Apply to every temperature chart below. The El Niño timeline zooms to the selected year; the season filter does not apply to it.</p>
-                    </header>
-                    <div class="temperature-filters">
-                        <div class="controls temperature-filter-bar">
-                            <span class="view-label">Cities:</span>
-                            <div id="cityFilters" class="city-filters">
-                                <label class="filter-label hanoi-label">
-                                    <input type="checkbox" value="Hanoi" checked> Hanoi
-                                </label>
-                                <label class="filter-label danang-label">
-                                    <input type="checkbox" value="Da Nang" checked> Da Nang
-                                </label>
-                                <label class="filter-label hcm-label">
-                                    <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
-                                </label>
-                            </div>
-                        </div>
-                        <div class="controls temperature-filter-bar">
-                            <label class="view-label" for="temperatureYear">Year:</label>
-                            <button id="temperatureAllYears" class="temperature-season" type="button">All years</button>
-                            <div id="temperatureYearSlider" class="temperature-year-slider">
-                                <input type="range" id="temperatureYear" step="1">
-                                <div id="temperatureYearTicks" class="temperature-year-ticks"></div>
-                            </div>
-                            <output id="temperatureYearValue" class="temperature-year-value" for="temperatureYear"></output>
-                        </div>
-                        <div class="controls temperature-filter-bar">
-                            <span class="view-label">Season:</span>
-                            <div id="temperatureSeasonFilter" class="temperature-season-filter" role="group" aria-label="Season filter"></div>
-                        </div>
-                    </div>
-                </article>
+          <article class="card">
+            <header class="card-head">
+              <h3>A Typical Year</h3>
+              <p>
+                Monthly mean temperature. Hover a dot for min–max, humidity and
+                sunshine; click it to see that month in every year, then click a
+                year to see its days (‹ › moves to the previous or next month).
+              </p>
+            </header>
+            <nav
+              id="temperatureFingerprintPath"
+              class="temperature-path"
+              aria-label="Drill-down path"
+            ></nav>
+            <div
+              id="temperature-fingerprint-chart"
+              class="temperature-chart"
+            ></div>
+          </article>
 
-                <article class="card">
-                    <header class="card-head">
-                        <h3>A Typical Year</h3>
-                        <p>Monthly mean temperature. Hover a dot for min–max, humidity and sunshine; click it to see that month in every year, then click a year to see its days (‹ › moves to the previous or next month).</p>
-                    </header>
-                    <nav id="temperatureFingerprintPath" class="temperature-path" aria-label="Drill-down path"></nav>
-                    <div id="temperature-fingerprint-chart" class="temperature-chart"></div>
-                </article>
-
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Temperature and Sunshine</h3>
-                        <p>Bars: hours of sunshine per day (left axis) · Line: mean temperature (right axis) · r: how closely temperature follows sunshine. Click a month for exact values; in the Years view, click a year to select it for all charts.</p>
-                    </header>
-                    <div class="controls temperature-filter-bar">
-                        <label class="view-label" for="comparisonView">Show:</label>
-                        <select id="comparisonView" class="temperature-select">
-                            <option value="month">Months</option>
-                            <option value="year">Years</option>
-                        </select>
-                    </div>
-                    <div id="temperature-comparison-chart" class="temperature-chart"></div>
-                    <div id="temperature-comparison-detail" class="temperature-detail"></div>
-                </article>
-
-                <article class="card card-wide">
-                    <header class="card-head">
-                        <h3>2015–2025: El Niño and La Niña</h3>
-                        <p>Lines: monthly temperature anomaly (3-month average) · Shading: El Niño and La Niña periods (NOAA Oceanic Niño Index). Drag in the bottom strip to zoom.</p>
-                    </header>
-                    <div id="temperature-timeline-chart" class="temperature-chart"></div>
-                </article>
+          <article class="card">
+            <header class="card-head">
+              <h3>Temperature and Sunshine</h3>
+              <p>
+                Bars: hours of sunshine per day (left axis) · Line: mean
+                temperature (right axis) · r: how closely temperature follows
+                sunshine. Click a month for exact values; in the Years view,
+                click a year to select it for all charts.
+              </p>
+            </header>
+            <div class="controls temperature-filter-bar">
+              <label class="view-label" for="comparisonView">Show:</label>
+              <select id="comparisonView" class="temperature-select">
+                <option value="month">Months</option>
+                <option value="year">Years</option>
+              </select>
             </div>
-        </section>
+            <div
+              id="temperature-comparison-chart"
+              class="temperature-chart"
+            ></div>
+            <div
+              id="temperature-comparison-detail"
+              class="temperature-detail"
+            ></div>
+          </article>
 
-        <!-- ===== RQ2: Rainfall ===== -->
-        <section id="rainfall" class="dash-section">
-            <div class="band band-rainfall">
-                <span class="band-tag">RQ2</span>
-                <div>
-                    <h2>Rainy Season Timing &amp; Intensity</h2>
-                    <p>How do rainy seasons differ in timing, length and heavy rainfall amounts?</p>
+          <article class="card card-wide">
+            <header class="card-head">
+              <h3>2015–2025: El Niño and La Niña</h3>
+              <p>
+                Lines: monthly temperature anomaly (3-month average) · Shading:
+                El Niño and La Niña periods (NOAA Oceanic Niño Index). Drag in
+                the bottom strip to zoom.
+              </p>
+            </header>
+            <div
+              id="temperature-timeline-chart"
+              class="temperature-chart"
+            ></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ===== RQ2: Rainfall ===== -->
+      <section id="rainfall" class="dash-section">
+        <div class="band band-rainfall">
+          <span class="band-tag">RQ2</span>
+          <div>
+            <h2>Rainy Season Timing &amp; Intensity</h2>
+            <p>
+              How do rainy seasons differ in timing, length and heavy rainfall
+              amounts?
+            </p>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <article class="card">
+            <header class="card-head">
+              <h3>Rainfall by City</h3>
+              <p>
+                Annual totals. Click a bar to drill into months, then days;
+                click a daily bar to compare rainfall amount with duration.
+              </p>
+            </header>
+            <div class="controls">
+              <div class="controls-left">
+                <button id="rainfallBackButton" class="back-btn">← Back</button>
+                <span id="rainfallViewLabel" class="view-label"></span>
+              </div>
+              <div
+                id="rainfallCityFilters"
+                class="city-filters rainfall-city-filters"
+                role="group"
+                aria-label="Filter rainfall charts by city"
+              >
+                <span class="filter-group-label">Show cities:</span>
+                <label class="filter-label hanoi-label">
+                  <input type="checkbox" value="Hanoi" checked /> Hanoi
+                </label>
+                <label class="filter-label danang-label">
+                  <input type="checkbox" value="Da Nang" checked /> Da Nang
+                </label>
+                <label class="filter-label hcm-label">
+                  <input type="checkbox" value="Ho Chi Minh City" checked /> Ho
+                  Chi Minh City
+                </label>
+              </div>
+            </div>
+            <div id="rainfall-chart"></div>
+
+            <section
+              id="rainfall-duration-breakdown"
+              class="rainfall-duration-breakdown"
+              hidden
+            >
+              <h3>Daily Rainfall Amount vs. Duration</h3>
+              <p>
+                Each point is one day in the selected month. Farther right means
+                more rainfall; higher means more hours of rain. High rainfall
+                over few hours suggests a brief, intense event; moderate
+                rainfall over many hours suggests persistent rain. The selected
+                day is highlighted.
+              </p>
+              <p
+                id="rainfall-duration-summary"
+                class="rainfall-duration-summary"
+              ></p>
+              <div
+                id="rainfall-duration-chart"
+                class="rainfall-duration-chart"
+              ></div>
+            </section>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <h3>Synchronized Precipitation–Humidity Trend</h3>
+              <p>
+                Colour identifies city. Solid lines: precipitation (mm); dashed
+                lines: humidity (%). Each point is the average of the days in
+                that month.
+              </p>
+            </header>
+            <div
+              id="precipitation-humidity-chart"
+              class="precipitation-humidity-chart"
+            ></div>
+          </article>
+
+          <article class="card card-wide">
+            <header class="card-head">
+              <h3>Daily Rainfall Calendar</h3>
+              <p>
+                Side by side: the three cities in the selected year, on one
+                colour scale. Click an annual bar in “Rainfall by City” to focus
+                on one city instead.
+              </p>
+            </header>
+            <div class="rainfall-calendar-layout">
+              <div id="rainfall-heatmap"></div>
+              <aside id="rainfall-detail" hidden></aside>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ===== RQ3: Extreme weather ===== -->
+      <section id="extremes" class="dash-section">
+        <div class="band band-extremes">
+          <span class="band-tag">RQ3</span>
+          <div>
+            <h2>Extreme Weather &amp; Climate Trends</h2>
+            <p>
+              Are hot days (&gt;35°C), cold days (Bitterly cold, ≤20°C) or heavy rainfall
+              days (&gt;50 mm) becoming more frequent over time?
+            </p>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <article class="card">
+            <header class="card-head">
+              <h3>Annual Hot Days (&gt;35°C)</h3>
+            </header>
+            <div class="controls">
+              <span class="view-label">Annual Counts by City</span>
+              <div id="extremeCityFilters" class="city-filters">
+                <label class="filter-label hanoi-label">
+                  <input type="checkbox" value="Hanoi" checked /> Hanoi
+                </label>
+                <label class="filter-label danang-label">
+                  <input type="checkbox" value="Da Nang" checked /> Da Nang
+                </label>
+                <label class="filter-label hcm-label">
+                  <input type="checkbox" value="Ho Chi Minh City" checked /> Ho
+                  Chi Minh City
+                </label>
+              </div>
+            </div>
+            <div class="extreme-chart-layout">
+              <div id="hot-days-chart" class="extreme-chart"></div>
+              <div class="extreme-threshold">
+                <label for="hotDaysChangeThreshold">Highlight changes ≥</label>
+                <div class="extreme-threshold-value">
+                  <input
+                    id="hotDaysChangeThreshold"
+                    type="number"
+                    min="1"
+                    max="366"
+                    step="1"
+                    value="30"
+                    required
+                  />
+                  <span>days</span>
                 </div>
+              </div>
             </div>
-
-            <div class="dash-grid">
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Rainfall by City</h3>
-                        <p>Annual totals. Click a bar to drill into months, then days; click a daily bar to compare rainfall amount with duration.</p>
-                    </header>
-                    <div class="controls">
-                        <div class="controls-left">
-                            <button id="rainfallBackButton" class="back-btn">← Back</button>
-                            <span id="rainfallViewLabel" class="view-label"></span>
-                        </div>
-                        <div id="rainfallCityFilters" class="city-filters rainfall-city-filters" role="group" aria-label="Filter rainfall charts by city">
-                            <span class="filter-group-label">Show cities:</span>
-                            <label class="filter-label hanoi-label">
-                                <input type="checkbox" value="Hanoi" checked> Hanoi
-                            </label>
-                            <label class="filter-label danang-label">
-                                <input type="checkbox" value="Da Nang" checked> Da Nang
-                            </label>
-                            <label class="filter-label hcm-label">
-                                <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
-                            </label>
-                        </div>
-                    </div>
-                    <div id="rainfall-chart"></div>
-
-                    <section id="rainfall-duration-breakdown" class="rainfall-duration-breakdown" hidden>
-                        <h3>Daily Rainfall Amount vs. Duration</h3>
-                        <p>Each point is one day in the selected month. Farther right means more rainfall; higher means more hours of rain. High rainfall over few hours suggests a brief, intense event; moderate rainfall over many hours suggests persistent rain. The selected day is highlighted.</p>
-                        <p id="rainfall-duration-summary" class="rainfall-duration-summary"></p>
-                        <div id="rainfall-duration-chart" class="rainfall-duration-chart"></div>
-                    </section>
-                </article>
-
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Synchronized Precipitation–Humidity Trend</h3>
-                        <p>Colour identifies city. Solid lines: precipitation (mm); dashed lines: humidity (%). Each point is the average of the days in that month.</p>
-                    </header>
-                    <div id="precipitation-humidity-chart" class="precipitation-humidity-chart"></div>
-                </article>
-
-                <article class="card card-wide">
-                    <header class="card-head">
-                        <h3>Daily Rainfall Calendar</h3>
-                        <p>Side by side: the three cities in the selected year, on one colour scale. Click an annual bar in “Rainfall by City” to focus on one city instead.</p>
-                    </header>
-                    <div class="rainfall-calendar-layout">
-                        <div id="rainfall-heatmap"></div>
-                        <aside id="rainfall-detail" hidden></aside>
-                    </div>
-                </article>
+            <div class="extreme-zoom-row">
+              <div
+                id="hotDaysBrush"
+                class="extreme-chart extreme-overview"
+              ></div>
+              <button id="hotDaysResetZoom" class="extreme-reset" type="button">
+                Reset range
+              </button>
             </div>
-        </section>
+            <div class="controls">
+              <span
+                id="hotDaysYearRange"
+                class="view-label"
+                aria-live="polite"
+              ></span>
+            </div>
+          </article>
 
-        <!-- ===== RQ3: Extreme weather ===== -->
-        <section id="extremes" class="dash-section">
-            <div class="band band-extremes">
-                <span class="band-tag">RQ3</span>
-                <div>
-                    <h2>Extreme Weather &amp; Climate Trends</h2>
-                    <p>Are hot days (&gt;35°C) or heavy rainfall days (&gt;50 mm) becoming more frequent over time?</p>
+          <article class="card">
+            <header class="card-head">
+              <h3>Annual Heavy Rainfall Days (&gt;50 mm)</h3>
+            </header>
+            <div class="controls">
+              <span class="view-label">Annual Counts by City</span>
+              <div id="heavyRainCityFilters" class="city-filters">
+                <label class="filter-label hanoi-label">
+                  <input type="checkbox" value="Hanoi" checked /> Hanoi
+                </label>
+                <label class="filter-label danang-label">
+                  <input type="checkbox" value="Da Nang" checked /> Da Nang
+                </label>
+                <label class="filter-label hcm-label">
+                  <input type="checkbox" value="Ho Chi Minh City" checked /> Ho
+                  Chi Minh City
+                </label>
+              </div>
+            </div>
+            <div class="extreme-chart-layout">
+              <div id="heavy-rain-days-chart" class="extreme-chart"></div>
+              <div class="extreme-threshold">
+                <label for="heavyRainDaysChangeThreshold"
+                  >Highlight changes ≥</label
+                >
+                <div class="extreme-threshold-value">
+                  <input
+                    id="heavyRainDaysChangeThreshold"
+                    type="number"
+                    min="1"
+                    max="366"
+                    step="1"
+                    value="5"
+                    required
+                  />
+                  <span>days</span>
                 </div>
+              </div>
             </div>
-
-            <div class="dash-grid">
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Annual Hot Days (&gt;35°C)</h3>
-                    </header>
-                    <div class="controls">
-                        <span class="view-label">Annual Counts by City</span>
-                        <div id="extremeCityFilters" class="city-filters">
-                            <label class="filter-label hanoi-label">
-                                <input type="checkbox" value="Hanoi" checked> Hanoi
-                            </label>
-                            <label class="filter-label danang-label">
-                                <input type="checkbox" value="Da Nang" checked> Da Nang
-                            </label>
-                            <label class="filter-label hcm-label">
-                                <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
-                            </label>
-                        </div>
-                    </div>
-                    <div class="extreme-chart-layout">
-                        <div id="hot-days-chart" class="extreme-chart"></div>
-                        <div class="extreme-threshold">
-                            <label for="hotDaysChangeThreshold">Highlight changes ≥</label>
-                            <div class="extreme-threshold-value">
-                                <input id="hotDaysChangeThreshold" type="number" min="1" max="366" step="1" value="30" required>
-                                <span>days</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="extreme-zoom-row">
-                        <div id="hotDaysBrush" class="extreme-chart extreme-overview"></div>
-                        <button id="hotDaysResetZoom" class="extreme-reset" type="button">Reset range</button>
-                    </div>
-                    <div class="controls">
-                        <span id="hotDaysYearRange" class="view-label" aria-live="polite"></span>
-                    </div>
-                </article>
-
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Annual Heavy Rainfall Days (&gt;50 mm)</h3>
-                    </header>
-                    <div class="controls">
-                        <span class="view-label">Annual Counts by City</span>
-                        <div id="heavyRainCityFilters" class="city-filters">
-                            <label class="filter-label hanoi-label">
-                                <input type="checkbox" value="Hanoi" checked> Hanoi
-                            </label>
-                            <label class="filter-label danang-label">
-                                <input type="checkbox" value="Da Nang" checked> Da Nang
-                            </label>
-                            <label class="filter-label hcm-label">
-                                <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
-                            </label>
-                        </div>
-                    </div>
-                    <div class="extreme-chart-layout">
-                        <div id="heavy-rain-days-chart" class="extreme-chart"></div>
-                        <div class="extreme-threshold">
-                            <label for="heavyRainDaysChangeThreshold">Highlight changes ≥</label>
-                            <div class="extreme-threshold-value">
-                                <input id="heavyRainDaysChangeThreshold" type="number" min="1" max="366" step="1" value="5" required>
-                                <span>days</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="extreme-zoom-row">
-                        <div id="heavyRainDaysBrush" class="extreme-chart extreme-overview"></div>
-                        <button id="heavyRainDaysResetZoom" class="extreme-reset" type="button">Reset range</button>
-                    </div>
-                    <div class="controls">
-                        <span id="heavyRainDaysYearRange" class="view-label" aria-live="polite"></span>
-                    </div>
-                </article>
-
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Number of Hot Days (&gt;35°C)</h3>
-                        <p>Click a bar to see monthly counts for that city and year.</p>
-                    </header>
-                    <div id="extremeFrequencyLegend" class="extreme-frequency-legend" role="list" aria-label="City colours for hot day frequency"></div>
-                    <nav id="extreme-frequency-hot-path" class="extreme-frequency-path" aria-label="Hot day frequency navigation" hidden></nav>
-                    <div id="extreme-frequency-hot" class="extreme-chart"></div>
-                </article>
-
-                <article class="card">
-                    <header class="card-head">
-                        <h3>Number of Heavy Rainfall Days (&gt;50 mm)</h3>
-                        <p>Click a bar to see monthly counts for that city and year.</p>
-                    </header>
-                    <div id="extremeRainFrequencyLegend" class="extreme-frequency-legend" role="list" aria-label="City colours for heavy rainfall frequency"></div>
-                    <nav id="extreme-frequency-rain-path" class="extreme-frequency-path" aria-label="Heavy rainfall frequency navigation" hidden></nav>
-                    <div id="extreme-frequency-rain" class="extreme-chart"></div>
-                </article>
-
-                <article class="card card-wide">
-                    <header class="card-head">
-                        <h3 id="extreme-heat-title">Apparent Temperature and Humidity</h3>
-                        <p>Colour: mean maximum apparent temperature · Grey: no observations.</p>
-                    </header>
-                    <div class="extreme-heatmap-toolbar">
-                        <div id="extremeHeatmapCities" class="city-filters" role="group" aria-label="Cities for apparent temperature maps"></div>
-                        <div id="extreme-heatmap-legend" class="extreme-chart extreme-colour-legend"></div>
-                    </div>
-                    <div id="extreme-heatmap" class="extreme-heatmap-grid"></div>
-                    <div class="extreme-zoom-row">
-                        <div id="extremeHeatmapBrush" class="extreme-chart extreme-overview"></div>
-                        <button id="extremeHeatmapResetRange" class="extreme-reset" type="button">Reset range</button>
-                    </div>
-                    <div class="controls">
-                        <span id="extremeHeatmapYearRange" class="view-label" aria-live="polite"></span>
-                    </div>
-                </article>
-
-                <article class="card card-wide">
-                    <header class="card-head">
-                        <h3 id="extreme-storm-title">Conditions Around Heavy Rainfall</h3>
-                        <p>Only days with rainfall &gt;50 mm.</p>
-                    </header>
-                    <div id="extreme-storm-plots">
-                        <h4 class="extreme-chart-title">Maximum Wind Speed (km/h)</h4>
-                        <div id="extremeWindCities" class="city-filters" role="group" aria-label="Cities for maximum wind speed"></div>
-                        <div id="extreme-storm-wind" class="extreme-chart"></div>
-                        <div class="extreme-zoom-row">
-                            <div id="extremeWindBrush" class="extreme-chart extreme-overview"></div>
-                            <button id="extremeWindResetRange" class="extreme-reset" type="button">Reset range</button>
-                        </div>
-                        <div class="controls">
-                            <span id="extremeWindRange" class="view-label" aria-live="polite"></span>
-                        </div>
-                        <h4 class="extreme-chart-title">Prevailing Wind Direction</h4>
-                        <p class="extreme-note">Wind from · Days by direction · Click a city’s bar to see monthly counts</p>
-                        <div class="extreme-direction-layout">
-                            <div id="extremeStormDirectionLegend" class="extreme-city-legend" role="list" aria-label="Wind direction colours"></div>
-                            <div id="extremeStormDirectionPath" class="extreme-frequency-path" aria-live="polite" hidden></div>
-                            <div id="extreme-storm-direction" class="extreme-chart"></div>
-                            <div class="extreme-zoom-row">
-                                <div id="extremeDirectionBrush" class="extreme-chart extreme-overview"></div>
-                                <button id="extremeDirectionResetRange" class="extreme-reset" type="button">Reset range</button>
-                            </div>
-                            <div class="controls">
-                                <span id="extremeDirectionRange" class="view-label" aria-live="polite"></span>
-                            </div>
-                            <aside class="extreme-direction-roses" aria-label="Wind roses for the selected date range">
-                                <div id="extremeDirectionRoses"></div>
-                            </aside>
-                        </div>
-                        <h4 class="extreme-chart-title">Sunshine (hours)</h4>
-                        <div id="extremeSunshineCities" class="city-filters" role="group" aria-label="Cities for sunshine duration"></div>
-                        <div id="extreme-storm-sunshine" class="extreme-chart"></div>
-                    </div>
-                    <div class="extreme-zoom-row">
-                        <div id="extremeStormBrush" class="extreme-chart extreme-overview"></div>
-                        <button id="extremeStormResetRange" class="extreme-reset" type="button">Reset range</button>
-                    </div>
-                    <div class="controls">
-                        <span id="extremeStormRange" class="view-label" aria-live="polite"></span>
-                    </div>
-                </article>
+            <div class="extreme-zoom-row">
+              <div
+                id="heavyRainDaysBrush"
+                class="extreme-chart extreme-overview"
+              ></div>
+              <button
+                id="heavyRainDaysResetZoom"
+                class="extreme-reset"
+                type="button"
+              >
+                Reset range
+              </button>
             </div>
-        </section>
+            <div class="controls">
+              <span
+                id="heavyRainDaysYearRange"
+                class="view-label"
+                aria-live="polite"
+              ></span>
+            </div>
+          </article>
 
-        <!-- ===== Linked views: scatter + distributions that share the filtered data ===== -->
-        <section id="correlation" class="dash-section">
-            <div class="band band-correlation">
-                <span class="band-tag">Explore</span>
-                <div>
-                    <h2>Interactive Correlation Dashboard</h2>
-                    <p>How do humidity, temperature, sunshine and rainfall relate? Brush the scatter plot and the linked views update.</p>
+          <article class="card">
+            <header class="card-head">
+              <h3>Number of Hot Days (&gt;35°C)</h3>
+              <p>Click a bar to see monthly counts for that city and year.</p>
+            </header>
+            <div
+              id="extremeFrequencyLegend"
+              class="extreme-frequency-legend"
+              role="list"
+              aria-label="City colours for hot day frequency"
+            ></div>
+            <nav
+              id="extreme-frequency-hot-path"
+              class="extreme-frequency-path"
+              aria-label="Hot day frequency navigation"
+              hidden
+            ></nav>
+            <div id="extreme-frequency-hot" class="extreme-chart"></div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <h3>Number of Heavy Rainfall Days (&gt;50 mm)</h3>
+              <p>Click a bar to see monthly counts for that city and year.</p>
+            </header>
+            <div
+              id="extremeRainFrequencyLegend"
+              class="extreme-frequency-legend"
+              role="list"
+              aria-label="City colours for heavy rainfall frequency"
+            ></div>
+            <nav
+              id="extreme-frequency-rain-path"
+              class="extreme-frequency-path"
+              aria-label="Heavy rainfall frequency navigation"
+              hidden
+            ></nav>
+            <div id="extreme-frequency-rain" class="extreme-chart"></div>
+          </article>
+
+          <article class="card card-wide">
+            <header class="card-head">
+              <h3>Cold Days</h3>
+              <p>
+                Based on the daily <strong>mean</strong> temperature: Bitterly cold
+                15–20°C · Severe cold 13–&lt;15°C · Damaging cold &lt;13°C. Pick a level;
+                the two cold charts below follow it.
+              </p>
+            </header>
+            <div class="extreme-level-toolbar">
+              <span class="view-label">Level</span>
+              <div id="extremeColdLevel"></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <header class="card-head">
+              <h3 id="coldTrendTitle">Annual Cold days (≤20°C)</h3>
+            </header>
+            <div class="controls">
+              <span class="view-label">Annual Counts by City</span>
+              <div id="coldCityFilters" class="city-filters">
+                <label class="filter-label hanoi-label">
+                  <input type="checkbox" value="Hanoi" checked /> Hanoi
+                </label>
+                <label class="filter-label danang-label">
+                  <input type="checkbox" value="Da Nang" checked /> Da Nang
+                </label>
+                <label class="filter-label hcm-label">
+                  <input type="checkbox" value="Ho Chi Minh City" checked /> Ho
+                  Chi Minh City
+                </label>
+              </div>
+            </div>
+            <div class="extreme-chart-layout">
+              <div id="cold-days-chart" class="extreme-chart"></div>
+              <div class="extreme-threshold">
+                <label for="coldDaysChangeThreshold">Highlight changes ≥</label>
+                <div class="extreme-threshold-value">
+                  <input
+                    id="coldDaysChangeThreshold"
+                    type="number"
+                    min="1"
+                    max="366"
+                    step="1"
+                    value="20"
+                    required
+                  />
+                  <span>days</span>
                 </div>
+              </div>
             </div>
-            <div id="correlationRoot"></div>
-        </section>
+            <div class="extreme-zoom-row">
+              <div
+                id="coldDaysBrush"
+                class="extreme-chart extreme-overview"
+              ></div>
+              <button
+                id="coldDaysResetZoom"
+                class="extreme-reset"
+                type="button"
+              >
+                Reset range
+              </button>
+            </div>
+            <div class="controls">
+              <span
+                id="coldDaysYearRange"
+                class="view-label"
+                aria-live="polite"
+              ></span>
+            </div>
+          </article>
 
-        <footer class="dash-footer">
-            Data: Open-Meteo Historical Weather API (daily, 2015–2025) · NOAA Oceanic Niño Index ·
-            Hanoi 21.03°N 105.85°E · Da Nang 16.05°N 108.20°E · Ho Chi Minh City 10.82°N 106.63°E
-        </footer>
+          <article class="card">
+            <header class="card-head">
+              <h3 id="coldFrequencyTitle">Number of Cold days (≤20°C)</h3>
+              <p>Click a bar to see monthly counts for that city and year.</p>
+            </header>
+            <div
+              id="extremeColdFrequencyLegend"
+              class="extreme-frequency-legend"
+              role="list"
+              aria-label="City colours for cold day frequency"
+            ></div>
+            <nav
+              id="extreme-frequency-cold-path"
+              class="extreme-frequency-path"
+              aria-label="Cold day frequency navigation"
+              hidden
+            ></nav>
+            <div id="extreme-frequency-cold" class="extreme-chart"></div>
+          </article>
+
+          <article class="card card-wide">
+            <header class="card-head">
+              <h3 id="extreme-heat-title">Apparent Temperature and Humidity</h3>
+              <p>
+                Colour: mean maximum apparent temperature · Grey: no
+                observations.
+              </p>
+            </header>
+            <div class="extreme-heatmap-toolbar">
+              <div
+                id="extremeHeatmapCities"
+                class="city-filters"
+                role="group"
+                aria-label="Cities for apparent temperature maps"
+              ></div>
+              <div
+                id="extreme-heatmap-legend"
+                class="extreme-chart extreme-colour-legend"
+              ></div>
+            </div>
+            <div id="extreme-heatmap" class="extreme-heatmap-grid"></div>
+            <div class="extreme-zoom-row">
+              <div
+                id="extremeHeatmapBrush"
+                class="extreme-chart extreme-overview"
+              ></div>
+              <button
+                id="extremeHeatmapResetRange"
+                class="extreme-reset"
+                type="button"
+              >
+                Reset range
+              </button>
+            </div>
+            <div class="controls">
+              <span
+                id="extremeHeatmapYearRange"
+                class="view-label"
+                aria-live="polite"
+              ></span>
+            </div>
+          </article>
+
+          <article class="card card-wide">
+            <header class="card-head">
+              <h3 id="extreme-storm-title">Conditions Around Heavy Rainfall</h3>
+              <p id="extreme-storm-note">Only days with rainfall &gt;50 mm.</p>
+            </header>
+            <div class="extreme-level-toolbar">
+              <span class="view-label">Days shown</span>
+              <div id="extremeEventType"></div>
+            </div>
+            <div id="extreme-storm-plots">
+              <h4 class="extreme-chart-title">Maximum Wind Speed (km/h)</h4>
+              <div
+                id="extremeWindCities"
+                class="city-filters"
+                role="group"
+                aria-label="Cities for maximum wind speed"
+              ></div>
+              <div id="extreme-storm-wind" class="extreme-chart"></div>
+              <div class="extreme-zoom-row">
+                <div
+                  id="extremeWindBrush"
+                  class="extreme-chart extreme-overview"
+                ></div>
+                <button
+                  id="extremeWindResetRange"
+                  class="extreme-reset"
+                  type="button"
+                >
+                  Reset range
+                </button>
+              </div>
+              <div class="controls">
+                <span
+                  id="extremeWindRange"
+                  class="view-label"
+                  aria-live="polite"
+                ></span>
+              </div>
+              <h4 class="extreme-chart-title">Prevailing Wind Direction</h4>
+              <p class="extreme-note">
+                Wind from · Days by direction · Click a city’s bar to see
+                monthly counts
+              </p>
+              <div class="extreme-direction-layout">
+                <div
+                  id="extremeStormDirectionLegend"
+                  class="extreme-city-legend"
+                  role="list"
+                  aria-label="Wind direction colours"
+                ></div>
+                <div
+                  id="extremeStormDirectionPath"
+                  class="extreme-frequency-path"
+                  aria-live="polite"
+                  hidden
+                ></div>
+                <div id="extreme-storm-direction" class="extreme-chart"></div>
+                <div class="extreme-zoom-row">
+                  <div
+                    id="extremeDirectionBrush"
+                    class="extreme-chart extreme-overview"
+                  ></div>
+                  <button
+                    id="extremeDirectionResetRange"
+                    class="extreme-reset"
+                    type="button"
+                  >
+                    Reset range
+                  </button>
+                </div>
+                <div class="controls">
+                  <span
+                    id="extremeDirectionRange"
+                    class="view-label"
+                    aria-live="polite"
+                  ></span>
+                </div>
+                <aside
+                  class="extreme-direction-roses"
+                  aria-label="Wind roses for the selected date range"
+                >
+                  <div id="extremeDirectionRoses"></div>
+                </aside>
+              </div>
+              <h4 class="extreme-chart-title">Sunshine (hours)</h4>
+              <div
+                id="extremeSunshineCities"
+                class="city-filters"
+                role="group"
+                aria-label="Cities for sunshine duration"
+              ></div>
+              <div id="extreme-storm-sunshine" class="extreme-chart"></div>
+            </div>
+            <div class="extreme-zoom-row">
+              <div
+                id="extremeStormBrush"
+                class="extreme-chart extreme-overview"
+              ></div>
+              <button
+                id="extremeStormResetRange"
+                class="extreme-reset"
+                type="button"
+              >
+                Reset range
+              </button>
+            </div>
+            <div class="controls">
+              <span
+                id="extremeStormRange"
+                class="view-label"
+                aria-live="polite"
+              ></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ===== Linked views: scatter + distributions that share the filtered data ===== -->
+      <section id="correlation" class="dash-section">
+        <div class="band band-correlation">
+          <span class="band-tag">Explore</span>
+          <div>
+            <h2>Interactive Correlation Dashboard</h2>
+            <p>
+              How do humidity, temperature, sunshine and rainfall relate? Brush
+              the scatter plot and the linked views update.
+            </p>
+          </div>
+        </div>
+        <div id="correlationRoot"></div>
+      </section>
+
+      <footer class="dash-footer">
+        Data: Open-Meteo Historical Weather API (daily, 2015–2025) · NOAA
+        Oceanic Niño Index · Hanoi 21.03°N 105.85°E · Da Nang 16.05°N 108.20°E ·
+        Ho Chi Minh City 10.82°N 106.63°E
+      </footer>
     </main>
 
     <!-- Same modular scripts as index.html (tabs.js is not needed: no tabs here) -->
@@ -421,5 +794,5 @@
     <script src="js/dashboardControls.js"></script>
     <script src="js/correlation.js"></script>
     <script src="js/dashboard.js"></script>
-</body>
+  </body>
 </html>

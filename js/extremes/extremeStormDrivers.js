@@ -1,7 +1,10 @@
 function drawExtremeStormDrivers() {
     const fullRange = d3.extent(rawParsedWeather, row => row.date);
     if (!fullRange[0]) return;
-    const events = getExtremeStormEvents(rawParsedWeather, fullRange);
+    // The days this panel looks at: heavy rain by default, or a cold level (see EXTREME_EVENT_TYPES).
+    // Built over the whole period (no season / box filter); every chart applies the dashboard filter when it draws.
+    let events = getExtremeStormEvents(rawParsedWeather, fullRange, false);
+    const eventType = () => extremeActiveEventType;
     const color = extremeCityColorScale();
     const tooltip = extremeCreateTooltip();
     const formatDay = d3.timeFormat("%d %b %Y");
@@ -29,32 +32,50 @@ function drawExtremeStormDrivers() {
     const navigators = [];            // the three date brushes; they follow the global time window
     let directionRestore = null;      // time window before a wind-direction drill-down
 
-    const directionKeys = events.some(row => !getExtremeWindDirection(row.windDirection))
-        ? [...compass, "Unavailable"] : compass;
-    extremeDrawLegend("#extremeStormDirectionLegend", directionKeys, directionColor);
+    function drawDirectionLegend() {
+        const keys = events.some(row => !getExtremeWindDirection(row.windDirection)) ? [...compass, "Unavailable"] : compass;
+        d3.select("#extremeStormDirectionLegend").selectAll("*").remove();
+        extremeDrawLegend("#extremeStormDirectionLegend", keys, directionColor);
+    }
+    drawDirectionLegend();
 
     const overviewX = d3.scaleTime()
         .domain([d3.timeHour.offset(fullRange[0], -12), d3.timeHour.offset(fullRange[1], 12)])
         .range([0, width]);
-    const sunshineOverview = createDateNavigator("#extremeStormBrush", "extremeStormResetRange", range => {
-        sunshine.range = range;
-        renderDaily(sunshine);
-    }, "sunshineHours", "Sunshine duration: select a date range");
-    const windOverview = createDateNavigator("#extremeWindBrush", "extremeWindResetRange", range => {
-        wind.range = range;
-        renderDaily(wind);
-    }, "windSpeedMax", "Maximum wind speed: select a date range");
-    createDateNavigator("#extremeDirectionBrush", "extremeDirectionResetRange", range => {
-        selectedDirectionRange = range;
-        renderDirection();
-    }, null, "Wind direction: select a date range for annual bars and the three city wind roses");
-    for (const [panel, overview] of [[wind, windOverview], [sunshine, sunshineOverview]]) {
+    // The three date navigators draw the selected days, so they are rebuilt when the kind of day changes.
+    function buildNavigators() {
+        navigators.length = 0;
+        ["#extremeStormBrush", "#extremeWindBrush", "#extremeDirectionBrush"].forEach(id => d3.select(id).selectAll("*").remove());
+        // A fresh copy of each reset button drops the click handler of the previous build.
+        ["extremeStormResetRange", "extremeWindResetRange", "extremeDirectionResetRange"].forEach(id => {
+            const button = document.getElementById(id);
+            button.replaceWith(button.cloneNode(true));
+        });
+        sunshine.overview = createDateNavigator("#extremeStormBrush", "extremeStormResetRange", range => {
+            sunshine.range = range;
+            renderDaily(sunshine);
+        }, "sunshineHours", "Sunshine duration: select a date range");
+        wind.overview = createDateNavigator("#extremeWindBrush", "extremeWindResetRange", range => {
+            wind.range = range;
+            renderDaily(wind);
+        }, "windSpeedMax", "Maximum wind speed: select a date range");
+        createDateNavigator("#extremeDirectionBrush", "extremeDirectionResetRange", range => {
+            selectedDirectionRange = range;
+            renderDirection();
+        }, null, "Wind direction: select a date range for annual bars and the three city wind roses");
+        [wind, sunshine].forEach(syncOverviewCities);
+    }
+    function syncOverviewCities(panel) {
+        panel.overview.selectAll(`.extreme-${panel.kind}-overview-line`)
+            .attr("display", series => panel.cities.has(series.city) ? null : "none");
+    }
+    for (const panel of [wind, sunshine]) {
         panel.cities = extremeInitCityFilters(panel.citiesId, () => {
-            overview.selectAll(`.extreme-${panel.kind}-overview-line`)
-                .attr("display", series => panel.cities.has(series.city) ? null : "none");
+            syncOverviewCities(panel);
             renderDaily(panel);
         });
     }
+    buildNavigators();
 
     function clampDate(date) {
         return new Date(Math.max(+fullRange[0], Math.min(+fullRange[1], +date)));
@@ -129,6 +150,7 @@ function drawExtremeStormDrivers() {
     function describe(row) {
         const wind = getExtremeWindDirection(row.windDirection);
         return `<strong>${row.city} · ${formatDay(row.date)}</strong><br>Rainfall: ${number(row.precipitation)} mm` +
+            `<br>Mean temperature: ${number(row.tempMean)} °C` +
             `<br>Maximum wind: ${number(row.windSpeedMax)} km/h` +
             `<br>Wind from: ${wind ? `${wind.name} (${wind.degrees.toFixed(0)}°)` : "Unavailable"}` +
             `<br>Sunshine: ${number(row.sunshineHours)} h`;
@@ -179,7 +201,7 @@ function drawExtremeStormDrivers() {
         const rows = getExtremeStormEvents(events, panel.range).filter(row => panel.cities.has(row.city));
         const { days, x, centre } = dailyLayout(panel.range);
         document.getElementById(panel.rangeId).textContent =
-            `Showing ${formatDay(panel.range[0])} – ${formatDay(panel.range[1])} · ${rows.length} heavy rainfall days across selected cities`;
+            `Showing ${formatDay(panel.range[0])} – ${formatDay(panel.range[1])} · ${rows.length} ${eventType().noun} across selected cities`;
         drawDaily(panel, rows, x, centre, days);
     }
 
@@ -192,7 +214,7 @@ function drawExtremeStormDrivers() {
 
     function createChart(panel, rows, x, days) {
         const { container, height: outerHeight, field, label } = panel;
-        const chart = extremeCreateSvg(container, outerHeight, `Heavy rainfall days across three cities: ${label}`, margin);
+        const chart = extremeCreateSvg(container, outerHeight, `${eventType().title} days across three cities: ${label}`, margin);
         chart.svg.attr("role", "group");
         const maximum = d3.max(rows, row => row[field]) || 1;
         const y = d3.scaleLinear().domain([0, maximum]).nice().range([chart.height, 0]);
@@ -202,7 +224,7 @@ function drawExtremeStormDrivers() {
         extremeAddAxes(chart.plot, x, y, chart.width, chart.height, "Date", label, axis, yAxis);
         if (!rows.length) chart.plot.append("text").attr("class", "extreme-axis-label")
             .attr("x", chart.width / 2).attr("y", chart.height / 2).attr("text-anchor", "middle")
-            .text(panel.cities.size ? "No days with rainfall above 50 mm in this range." : panel.emptyMessage);
+            .text(panel.cities.size ? eventType().empty : panel.emptyMessage);
         const guide = chart.plot.append("line").attr("class", "extreme-storm-guide")
             .attr("y1", 0).attr("y2", chart.height).style("display", "none");
         const result = { ...chart, container, x, y, guide };
@@ -243,7 +265,7 @@ function drawExtremeStormDrivers() {
 
     function directionDescription(row) {
         return `<strong>${row.city} · ${row.month === undefined ? "" : months[row.month] + " "}${row.year}</strong><br>${directionPeriod(row)}` +
-            `<br>Heavy rainfall: ${row.total} days<br>` +
+            `<br>${eventType().title}: ${row.total} days<br>` +
             compass.map((name, i) => `${name}: ${row.counts[i]}`).join(" · ") +
             (row.missing ? `<br>Direction unavailable: ${row.missing} days` : "");
     }
@@ -279,8 +301,8 @@ function drawExtremeStormDrivers() {
             ? getExtremeMonthlyWindCounts(events, selectedDirectionRange, selected.city, selected.year)
             : annualRows;
         const { svg, plot, width, height } = extremeCreateSvg("#extreme-storm-direction", 400,
-            selected ? `Monthly heavy rainfall days by wind origin for ${selected.city}, ${selected.year}`
-                : "Annual heavy rainfall days by city and wind origin; select a bar for monthly counts",
+            selected ? `Monthly ${eventType().noun} by wind origin for ${selected.city}, ${selected.year}`
+                : `Annual ${eventType().noun} by city and wind origin; select a bar for monthly counts`,
             { top: 22, right: 25, bottom: selected ? 55 : 90, left: 65 });
         svg.attr("role", "group");
         const keys = selected ? d3.range(12) : Array.from(new Set(rows.map(row => row.year)));
@@ -326,7 +348,7 @@ function drawExtremeStormDrivers() {
                 .on("pointermove", (event, segment) => {
                     event.stopPropagation();
                     tooltip.show(event, `<strong>${row.city} · ${row.year}</strong><br>${directionPeriod(row)}` +
-                        `<br>Wind from ${segment.name}: ${segment.count} days<br>Total: ${row.total} heavy rainfall days`);
+                        `<br>Wind from ${segment.name}: ${segment.count} days<br>Total: ${row.total} ${eventType().noun}`);
                 });
         });
         marks.filter(row => row.total === 0).append("rect").attr("class", "extreme-direction-zero")
@@ -358,7 +380,7 @@ function drawExtremeStormDrivers() {
             });
         if (!rows.some(row => row.total)) plot.append("text").attr("class", "extreme-axis-label")
             .attr("x", width / 2).attr("y", height / 2).attr("text-anchor", "middle")
-            .text("No days with rainfall above 50 mm in this range.");
+            .text(eventType().empty);
     }
 
     function drawRangeWindRoses() {
@@ -379,7 +401,7 @@ function drawExtremeStormDrivers() {
             drawWindRose(host, row, !!selectedDirection);
         });
         cards.append("p").attr("class", "extreme-rose-total")
-            .text(row => `${row.total} heavy rainfall days${row.missing ? ` · ${row.missing} without direction` : ""}`);
+            .text(row => `${row.total} ${eventType().noun}${row.missing ? ` · ${row.missing} without direction` : ""}`);
     }
 
     function drawWindRose(container, row, detail) {
@@ -387,7 +409,7 @@ function drawExtremeStormDrivers() {
         const period = row.year ? directionPeriod(row)
             : `${formatDay(selectedDirectionRange[0])} – ${formatDay(selectedDirectionRange[1])}`;
         const { svg, plot, width, height } = extremeCreateSvg(container, detail ? 210 : 160,
-            `Wind rose: ${row.city}, ${period}. Radius shows number of heavy rainfall days.`,
+            `Wind rose: ${row.city}, ${period}. Radius shows number of ${eventType().noun}.`,
             { top: 16, right: 15, bottom: 16, left: 15 }, 240);
         svg.attr("role", "group");
         const radius = detail ? 72 : 48;
@@ -451,6 +473,27 @@ function drawExtremeStormDrivers() {
             renderDirection();
         }
     });
+
+    // Which days to look at: heavy rain or one of the cold levels.
+    function setEventType(id) {
+        setExtremeEventType(id);
+        events = getExtremeStormEvents(rawParsedWeather, fullRange, false);
+        selectedDirection = null;        // an open wind-direction drill-down belongs to the previous kind of day
+        directionRestore = null;
+        drawDirectionLegend();
+        buildNavigators();
+        const current = DashSync.range().map(clampDate);
+        navigators.forEach(nav => nav.syncBrush(current));   // show the dashboard time window on the new brushes
+        const type = eventType();
+        const title = document.getElementById("extreme-storm-title");
+        if (title) title.textContent = `Conditions Around ${type.title}`;
+        const note = document.getElementById("extreme-storm-note");
+        if (note) note.textContent = type.note;
+        renderDaily(wind);
+        renderDaily(sunshine);
+        renderDirection();
+    }
+    extremeBuildSegmented("extremeEventType", EXTREME_EVENT_TYPES, eventType().id, type => setEventType(type.id));
 
     renderDaily(wind);
     renderDaily(sunshine);
