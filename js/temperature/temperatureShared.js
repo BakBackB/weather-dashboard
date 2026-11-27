@@ -20,7 +20,7 @@ const TEMP_QUARTERS = [
 const TEMP_DURATION = 450;
 
 // Width of every temperature chart in pixels (the height is set per chart)
-const TEMP_CHART_WIDTH = 850;
+const TEMP_CHART_WIDTH = 1080;
 
 
 // Helper functions
