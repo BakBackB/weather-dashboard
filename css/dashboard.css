@@ -418,15 +418,6 @@
     height: auto;
 }
 
-.temperature-select {
-    padding: 5px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #f8fafc;
-    font: inherit;
-    font-size: 13px;
-}
-
 /* Year slider with clickable labels ("All", '15 … '25) */
 .temperature-year-slider {
     display: flex;
@@ -557,38 +548,15 @@
     color: #fff;
 }
 
-.temperature-detail {
-    margin: 4px 10px 0;
-    padding: 0 14px;
-    border-radius: 8px;
-    background: #f8fafc;
-    color: #334155;
-    font-size: 13px;
-    line-height: 1.6;
+/* Sunshine strips below "A Typical Year", folded out with the "☀ Sunshine" button */
+.temperature-sunshine-strips {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.45s ease;
 }
 
-.temperature-detail:not(:empty) {
-    padding: 10px 14px 12px;
-}
-
-.temperature-detail p {
-    margin: 0 0 8px;
-}
-
-.temperature-detail-table {
-    margin-bottom: 8px;
-    border-collapse: collapse;
-}
-
-.temperature-detail-table th,
-.temperature-detail-table td {
-    padding: 2px 14px 2px 0;
-    text-align: left;
-}
-
-.temperature-detail-table th {
-    color: #64748b;
-    font-weight: 600;
+.temperature-sunshine-strips.open {
+    max-height: 400px;
 }
 
 /* Drill-down path of "A Typical Year", e.g. "All years › April › 2019" */
@@ -672,4 +640,20 @@
     #rainfall-heatmap .rainfall-day {
         transition: none;
     }
+}
+
+/* Badge next to the month arrows when the season filter limits them */
+.temperature-path-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 11px;
+}
+
+/* One-line usage hint above "A Typical Year" */
+.temperature-chart-hint {
+    margin: 0 0 4px;
+    color: #64748b;
+    font-size: 12px;
 }

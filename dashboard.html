@@ -105,9 +105,8 @@
             <header class="card-head">
               <h3>Filters</h3>
               <p>
-                Apply to every temperature chart below. The El Niño timeline
-                zooms to the selected year; the season filter does not apply to
-                it.
+                Apply to every temperature chart below (the El Niño chart uses
+                the season only when a year is selected).
               </p>
             </header>
             <div class="temperature-filters">
@@ -160,15 +159,28 @@
             </div>
           </article>
 
-          <article class="card">
+          <article class="card card-wide">
             <header class="card-head">
               <h3>A Typical Year</h3>
               <p>
-                Monthly mean temperature. Hover a dot for min–max, humidity and
-                sunshine; click it to see that month in every year, then click a
-                year to see its days (‹ › moves to the previous or next month).
+                Monthly mean temperature per city. Click a point to see that
+                month in every year and its single days; ☀ Sunshine adds the
+                sunshine hours below.
               </p>
             </header>
+            <div class="controls temperature-filter-bar">
+              <button
+                id="temperatureSunshineToggle"
+                class="temperature-season"
+                type="button"
+                aria-pressed="false"
+              >
+                ☀ Sunshine
+              </button>
+            </div>
+            <p class="temperature-chart-hint">
+              Click a point to drill down; use arrows to switch month.
+            </p>
             <nav
               id="temperatureFingerprintPath"
               class="temperature-path"
@@ -178,32 +190,9 @@
               id="temperature-fingerprint-chart"
               class="temperature-chart"
             ></div>
-          </article>
-
-          <article class="card">
-            <header class="card-head">
-              <h3>Temperature and Sunshine</h3>
-              <p>
-                Bars: hours of sunshine per day (left axis) · Line: mean
-                temperature (right axis) · r: how closely temperature follows
-                sunshine. Click a month for exact values; in the Years view,
-                click a year to select it for all charts.
-              </p>
-            </header>
-            <div class="controls temperature-filter-bar">
-              <label class="view-label" for="comparisonView">Show:</label>
-              <select id="comparisonView" class="temperature-select">
-                <option value="month">Months</option>
-                <option value="year">Years</option>
-              </select>
-            </div>
             <div
-              id="temperature-comparison-chart"
-              class="temperature-chart"
-            ></div>
-            <div
-              id="temperature-comparison-detail"
-              class="temperature-detail"
+              id="temperature-fingerprint-sunshine"
+              class="temperature-chart temperature-sunshine-strips"
             ></div>
           </article>
 
@@ -211,8 +200,8 @@
             <header class="card-head">
               <h3>2015–2025: El Niño and La Niña</h3>
               <p>
-                Lines: monthly temperature anomaly (3-month average) · Shading:
-                El Niño and La Niña periods (NOAA Oceanic Niño Index). Drag in
+                Lines: deviation from the 10-year monthly mean (3-month
+                average) · Shading: El Niño and La Niña periods (NOAA). Drag in
                 the bottom strip to zoom.
               </p>
             </header>
@@ -786,7 +775,6 @@
     <script src="js/dataLoader.js"></script>
     <script src="js/temperature/temperatureShared.js"></script>
     <script src="js/temperature/temperatureTypicalYear.js"></script>
-    <script src="js/temperature/temperatureSunshine.js"></script>
     <script src="js/temperature/temperatureElNino.js"></script>
     <script src="js/main.js"></script>
     <!-- Dashboard-only: shared views, global filter bar, correlation views, KPI row + nav highlight -->
