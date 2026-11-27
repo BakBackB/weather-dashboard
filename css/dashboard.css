@@ -418,15 +418,6 @@
     height: auto;
 }
 
-.temperature-select {
-    padding: 5px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #f8fafc;
-    font: inherit;
-    font-size: 13px;
-}
-
 /* Year slider with clickable labels ("All", '15 … '25) */
 .temperature-year-slider {
     display: flex;
@@ -466,13 +457,16 @@
     box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.2);
 }
 
+/* Each year label sits at the January of its year (its position is set in temperatureShared.js) */
 .temperature-year-ticks {
-    display: flex;
-    justify-content: space-between;
-    margin: 2px -4px 0;
+    position: relative;
+    height: 16px;
+    margin-top: 2px;
 }
 
 .temperature-year-ticks button {
+    position: absolute;
+    transform: translateX(-50%);
     width: 26px;
     padding: 0;
     border: none;
@@ -498,6 +492,30 @@
 .temperature-year-ticks button.active {
     color: #0284c7;
     font-weight: 700;
+}
+
+/* Buttons left and right of the year slider, one step back or forward */
+.temperature-step-button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 50%;
+    background: #fff;
+    color: #334155;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.temperature-step-button:hover:not(:disabled) {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+.temperature-step-button:disabled {
+    opacity: 0.4;
+    cursor: default;
 }
 
 .temperature-year-value {
@@ -557,41 +575,18 @@
     color: #fff;
 }
 
-.temperature-detail {
-    margin: 4px 10px 0;
-    padding: 0 14px;
-    border-radius: 8px;
-    background: #f8fafc;
-    color: #334155;
-    font-size: 13px;
-    line-height: 1.6;
+/* Sunshine strips below "Temperature Through the Year", folded out with the "☀ Sunshine" button */
+.temperature-sunshine-strips {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.45s ease;
 }
 
-.temperature-detail:not(:empty) {
-    padding: 10px 14px 12px;
+.temperature-sunshine-strips.open {
+    max-height: 400px;
 }
 
-.temperature-detail p {
-    margin: 0 0 8px;
-}
-
-.temperature-detail-table {
-    margin-bottom: 8px;
-    border-collapse: collapse;
-}
-
-.temperature-detail-table th,
-.temperature-detail-table td {
-    padding: 2px 14px 2px 0;
-    text-align: left;
-}
-
-.temperature-detail-table th {
-    color: #64748b;
-    font-weight: 600;
-}
-
-/* Drill-down path of "A Typical Year", e.g. "All years › April › 2019" */
+/* Drill-down path of "Temperature Through the Year", e.g. "All years › April › 2019" */
 .temperature-path {
     display: flex;
     align-items: center;
@@ -672,4 +667,20 @@
     #rainfall-heatmap .rainfall-day {
         transition: none;
     }
+}
+
+/* Badge next to the month arrows when the season filter limits them */
+.temperature-path-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 11px;
+}
+
+/* One-line usage hint above "Temperature Through the Year" */
+.temperature-chart-hint {
+    margin: 0 0 4px;
+    color: #64748b;
+    font-size: 12px;
 }

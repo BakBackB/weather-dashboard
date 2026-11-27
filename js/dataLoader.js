@@ -31,6 +31,7 @@ async function loadWeatherData() {
                 dayStr: parsedDate ? d3.timeFormat("%Y-%m-%d")(parsedDate) : null,
                 tempMean: Number(d.temperature_2m_mean),
                 tempMax: Number(d.temperature_2m_max),
+                tempMin: Number(d.temperature_2m_min),
                 apparentTempMax: parseWeatherNumber(d.apparent_temperature_max),
                 humidity: parseWeatherNumber(d.relative_humidity_2m_mean),
                 sunshineHours: parseWeatherNumber(d.sunshine_duration) / 3600,
@@ -41,8 +42,6 @@ async function loadWeatherData() {
                 precipitationHours: Number(d.precipitation_hours),
             };
         }).filter(d => d.date !== null && !isNaN(d.tempMean));
-
-        return getFilteredAggregatedData("year"); // Default view starts at Yearly overview
     } catch (error) {
         console.error("Error loading weather data:", error);
         return [];
