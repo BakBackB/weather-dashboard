@@ -1,5 +1,5 @@
 // Temperature tab
-// Chart "A Typical Year" with three levels
+// Chart "Temperature Through the Year" with three levels
 //   1. Overview: the monthly mean temperature of every city
 //   2. One month in every year
 //   3. One month in the selected year, day by day
@@ -30,6 +30,24 @@ function drawTemperatureTypicalYear() {
     // Monthly values of every single year, used to fix the axes so they do not move when filtering
     const monthsOfEveryYear = Array.from(d3.group(rawParsedWeather, row => row.date.getFullYear()).values())
         .flatMap(monthlyValues);
+
+    // Averages of every city and single month (for example March 2016) for a list of days
+    // key counts months (year * 12 + month), so the months of all years lie on one time axis.
+    const valuesOfEveryMonth = days => summarizeGroups(days, row => row.city, row => row.yearMonth, (rows, city) => {
+        const year = rows[0].date.getFullYear();
+        const month = rows[0].date.getMonth();
+        const max = average(rows, row => row.tempMax);
+        const min = average(rows, row => row.tempMin);
+        return {
+            city, year, month, max, min,
+            key: year * 12 + month,
+            mean: average(rows, row => row.tempMean),
+            humidity: average(rows, row => row.humidity),
+            sunshine: average(rows, row => row.sunshineHours),
+            range: max - min
+        };
+    });
+    const everyMonthValues = valuesOfEveryMonth(rawParsedWeather);
 
     // Shared year and season filter
     const filters = temperatureFilters;
@@ -210,6 +228,28 @@ function drawTemperatureTypicalYear() {
 
     // Drawing and navigation
 
+    // In the day view the year slider moves month by month through the days of every month
+    temperatureSliderOverride = {
+        active: () => view.level === "days" && filters.year !== null,
+        value: () => filters.year * 12 + view.month,
+        label: () => `${MONTH_LABELS[view.month]} ${filters.year}`,
+        select: position => {
+            const year = Math.floor(position / 12);
+            const month = position % 12;
+            // Months outside the selected season are skipped
+            if (!filters.quarter.months.includes(month)) {
+                syncTemperatureFilters();
+                return;
+            }
+            if (year !== filters.year || month !== view.month) showMonthDays({ month, year });
+        },
+        step: direction => {
+            const target = neighbourMonth(direction);
+            if (target) showMonthDays(target);
+        },
+        canStep: direction => neighbourMonth(direction) !== null
+    };
+
     // Draws the current level, the navigation path and hides unchecked cities
     // animate: move the day view to the new year or month instead of drawing it new
     function renderFingerprint(animate = false) {
@@ -220,6 +260,7 @@ function drawTemperatureTypicalYear() {
 
         drawPath();
         applyTemperatureCityFilter();
+        syncTemperatureFilters();  // the slider shows the month of the day view, or the window of the overview
     }
 
     // Navigation path above the chart, for example the year 2022 followed by February
@@ -293,31 +334,59 @@ function drawTemperatureTypicalYear() {
 
 
     // Level 1: overview
-    // One line per city with the monthly mean temperature, the 10-year average or the selected year.
-    // A new year or season updates the chart with a transition, so the lines can be followed.
+    // One line per city with the monthly mean temperature.
+    // Two modes:
+    //   average    no year selected, the 12 calendar months of the 10-year average (or of a year span)
+    //   timeline   a year is selected, every month of every year on one time axis, of which a 12-month window is visible
+    // In the timeline the year slider only moves the visible window, so new months slide in and old ones slide out.
+    // A new year, window or season updates the chart with a transition, so the lines can be followed.
     function drawOverview() {
         const margin = { top: 30, right: 70, bottom: 40, left: 60 };
         const width = TEMP_CHART_WIDTH - margin.left - margin.right;
         const height = chartHeight - margin.top - margin.bottom;
+        const mode = filters.year === null ? "average" : "timeline";
 
-        // Update the existing overview, or build it when coming from another level
+        // Update the existing overview in the same mode, otherwise build it new
         let svg = d3.select(chartId).select(".temp-fp-overview");
-        const animate = !svg.empty();
-        if (!animate) svg = buildOverview(margin, width, height);
+        const animate = !svg.empty() && svg.attr("data-mode") === mode;
+        if (!animate) svg = buildOverview(margin, width, height).attr("data-mode", mode);
         const move = selection => animate ? selection.transition().duration(TEMP_DURATION) : selection;
 
-        // The 10-year average, or the months of the selected year or year span (only days inside the day condition)
-        const useTenYearAverages = filters.year === null && !filters.span && !temperatureHasCondition();
-        const values = useTenYearAverages ? tenYearAverages : monthlyValues(temperatureRows());
-        const months = filters.quarter.months;
+        // Values with a key for the x-axis
+        // In the average mode the key is the calendar month, in the timeline it counts months (year * 12 + month).
+        let values;
+        let visibleKeys;
+        if (mode === "average") {
+            const useTenYearAverages = !filters.span && !temperatureHasCondition();
+            values = (useTenYearAverages ? tenYearAverages : monthlyValues(temperatureRows()))
+                .map(entry => ({ ...entry, key: entry.month }));
+            visibleKeys = filters.quarter.months;
+        } else {
+            values = temperatureHasCondition()
+                ? valuesOfEveryMonth(rawParsedWeather.filter(temperatureInCondition))
+                : everyMonthValues;
+            const firstKey = filters.year * 12 + filters.startMonth;
+            visibleKeys = filters.startMonth === 0
+                ? filters.quarter.months.map(month => firstKey + month)
+                : d3.range(firstKey, firstKey + 12);
+        }
+        const firstVisible = visibleKeys[0];
+        const lastVisible = visibleKeys[visibleKeys.length - 1];
 
-        // All 12 months are drawn and the season sets the visible part, so a new season zooms instead of jumping
-        const xScale = d3.scaleLinear().domain([months[0] - 0.5, months[months.length - 1] + 0.5]).range([0, width]);
+        // All months are drawn and the visible keys set the domain, so a new window or season slides instead of jumping
+        const xScale = d3.scaleLinear().domain([firstVisible - 0.5, lastVisible + 0.5]).range([0, width]);
         // The y-axis covers the months of every single year, so it stays still when filtering
         const yScale = d3.scaleLinear()
             .domain([Math.floor(d3.min(monthsOfEveryYear, entry => entry.mean)) - 1,
                      Math.ceil(d3.max(monthsOfEveryYear, entry => entry.mean)) + 1])
             .range([height, 0]);
+
+        // Text for a key, with the year in the timeline (for example "Mar 2016")
+        const keyLabel = key => mode === "average" ? MONTH_LABELS[key] : `${MONTH_LABELS[key % 12]} ${Math.floor(key / 12)}`;
+        // Axis label for a key, the year is added to January and to the first visible month
+        const tickLabel = key => mode === "average" || (key % 12 !== 0 && key !== firstVisible)
+            ? MONTH_LABELS[key % 12]
+            : `${MONTH_LABELS[key % 12]} '${String(Math.floor(key / 12)).slice(2)}`;
 
         // Grid and axes
         const gridLines = svg.select(".temp-fp-grid").selectAll("line")
@@ -330,9 +399,10 @@ function drawTemperatureTypicalYear() {
         move(gridLines).attr("y1", tick => yScale(tick)).attr("y2", tick => yScale(tick));
         move(svg.select(".temp-fp-y-axis")).call(d3.axisLeft(yScale));
         svg.select(".temp-fp-title")
-            .text(filters.year === null ? temperatureYearLabel() : `Year ${filters.year}`);
+            .text(mode === "average" ? temperatureYearLabel()
+                : temperatureRollingWindow() ? temperatureWindowLabel() : `Year ${filters.year}`);
         move(svg.select(".temp-fp-x-axis"))
-            .call(d3.axisBottom(xScale).tickValues(months).tickFormat(month => MONTH_LABELS[month]));
+            .call(d3.axisBottom(xScale).tickValues(visibleKeys).tickFormat(tickLabel));
 
         // One group per city with its line and dots
         const cityGroups = svg.select(".temp-fp-lines").selectAll(".temp-city")
@@ -349,46 +419,52 @@ function drawTemperatureTypicalYear() {
                     .style("pointer-events", "none");
                 return group;
             });
-        const lineGenerator = d3.line().x(entry => xScale(entry.month)).y(entry => yScale(entry.mean));
-        move(cityGroups.select(".temp-fp-mean-line").datum(([, entries]) => entries.slice().sort((first, second) => first.month - second.month)))
+        const lineGenerator = d3.line().x(entry => xScale(entry.key)).y(entry => yScale(entry.mean));
+        move(cityGroups.select(".temp-fp-mean-line").datum(([, entries]) => entries.slice().sort((first, second) => first.key - second.key)))
             .attr("d", lineGenerator);
 
         // The dots show details on hover and open the drill-down on click
         const dots = cityGroups.selectAll("circle")
-            .data(([, entries]) => entries, entry => entry.month)
+            .data(([, entries]) => entries, entry => entry.key)
             .join(enter => enter.append("circle")
                 .attr("r", 4)
                 .attr("fill", entry => color(entry.city))
-                .attr("cx", entry => xScale(entry.month))
+                .attr("cx", entry => xScale(entry.key))
                 .attr("cy", entry => yScale(entry.mean))
                 .style("cursor", "pointer"))
             .on("mouseover", function(event, entry) {
                 d3.select(this).attr("r", 6);
-                tooltip.show(event, `<strong>${entry.city}</strong> · ${MONTH_LABELS[entry.month]}<br/>` +
+                tooltip.show(event, `<strong>${entry.city}</strong> · ${keyLabel(entry.key)}<br/>` +
                     `Mean: ${formatNumber(entry.mean)}°C<br/>Avg. min–max: ${formatNumber(entry.min)}–${formatNumber(entry.max)}°C<br/>` +
                     `Daily range: ${formatNumber(entry.range)}°C<br/>` +
                     `Humidity: ${Math.round(entry.humidity)}% · Sunshine: ${formatNumber(entry.sunshine)} h/day<br/>` +
-                    `<em>${filters.year === null ? "Click to see this month in every year" : "Click to see its days"}</em>`);
+                    `<em>${mode === "average" ? "Click to see this month in every year" : "Click to see its days"}</em>`);
             })
             .on("mouseout", function() {
                 d3.select(this).attr("r", 4);
                 tooltip.hide();
             })
             .on("click", (event, entry) => {
-                // With a year selected a month opens its days directly, otherwise that month in every year
-                view = { level: filters.year === null ? "month" : "days", city: entry.city, month: entry.month };
-                renderFingerprint();
+                // In the average mode a month opens that month in every year
+                if (mode === "average") {
+                    view = { level: "month", city: entry.city, month: entry.month };
+                    renderFingerprint();
+                    return;
+                }
+                // In the timeline a month opens its days, and the slider jumps to the calendar year of that month
+                view = { level: "days", city: entry.city, month: entry.month };
+                if (entry.year !== filters.year || filters.startMonth !== 0) setTemperatureFilters({ year: entry.year });
+                else renderFingerprint();
             });
-        move(dots).attr("cx", entry => xScale(entry.month)).attr("cy", entry => yScale(entry.mean));
+        move(dots).attr("cx", entry => xScale(entry.key)).attr("cy", entry => yScale(entry.mean));
 
         // City names right of the chart, at the height where each line leaves the chart
         // Names that would overlap are pushed apart.
-        const lastMonth = months[months.length - 1];
-        const meanOf = (city, month) => values.find(entry => entry.city === city && entry.month === month)?.mean;
+        const meanOf = (city, key) => values.find(entry => entry.city === city && entry.key === key)?.mean;
         const labelPositions = TEMP_CITIES
             .map(city => {
-                const nextMean = meanOf(city, lastMonth + 1);  // the line continues half a month towards the next month
-                const edgeMean = nextMean === undefined ? meanOf(city, lastMonth) : (meanOf(city, lastMonth) + nextMean) / 2;
+                const nextMean = meanOf(city, lastVisible + 1);  // the line continues half a month towards the next month
+                const edgeMean = nextMean === undefined ? meanOf(city, lastVisible) : (meanOf(city, lastVisible) + nextMean) / 2;
                 return { city, y: yScale(edgeMean) };
             })
             .sort((first, second) => first.y - second.y);
@@ -409,17 +485,17 @@ function drawTemperatureTypicalYear() {
         move(cityLabels).attr("y", label => label.y);
 
         // Hover guide positions, one per visible month
-        setGuide(xScale, months.map(month => ({
-            key: month,
-            label: MONTH_LABELS[month],
-            values: values.filter(entry => entry.month === month)
+        setGuide(xScale, visibleKeys.map(key => ({
+            key,
+            label: keyLabel(key),
+            values: values.filter(entry => entry.key === key)
                 .map(entry => ({ city: entry.city, temp: entry.mean, sunshine: entry.sunshine }))
         })));
 
         // Sunshine strips with the monthly sunshine
-        const period = filters.year === null ? `(${temperatureYearLabel()})` : filters.year;
-        drawSunshine("months", margin, xScale, values.map(entry => ({
-            city: entry.city, key: entry.month, label: `${MONTH_LABELS[entry.month]} ${period}`, sunshine: entry.sunshine
+        const averagePeriod = mode === "average" ? ` (${temperatureYearLabel()})` : "";
+        drawSunshine(`months-${mode}`, margin, xScale, values.map(entry => ({
+            city: entry.city, key: entry.key, label: keyLabel(entry.key) + averagePeriod, sunshine: entry.sunshine
         })), sunshineMax.monthly, "h/day", animate);
     }
 
@@ -618,14 +694,13 @@ function drawTemperatureTypicalYear() {
         const dayCount = d3.max(monthDays, row => row.date.getDate());
         const dayOfMonth = row => row.date.getDate();
         const xScale = d3.scaleLinear().domain([1, dayCount]).range([0, width]);
-        // The y-axis covers this month in every year (band of the highlighted city and lines of the checked cities),
-        // so it stays still when the year changes and only the data moves
+        // The y-axis covers the daily minimum to maximum of this month in every year for all checked cities,
+        // so it stays still when the year changes or another city is highlighted and only the data moves
         const sameMonthAllYears = rawParsedWeather.filter(row => row.date.getMonth() === month);
-        const focusAllYears = sameMonthAllYears.filter(row => row.city === focusCity);
         const checkedAllYears = sameMonthAllYears.filter(row => checked.includes(row.city));
+        const axisDays = checkedAllYears.length ? checkedAllYears : sameMonthAllYears.filter(row => row.city === focusCity);
         const yScale = d3.scaleLinear()
-            .domain([Math.min(d3.min(focusAllYears, row => row.tempMin), d3.min(checkedAllYears, row => row.tempMean) ?? Infinity) - 1,
-                     Math.max(d3.max(focusAllYears, row => row.tempMax), d3.max(checkedAllYears, row => row.tempMean) ?? -Infinity) + 1])
+            .domain([d3.min(axisDays, row => row.tempMin) - 1, d3.max(axisDays, row => row.tempMax) + 1])
             .nice()
             .range([height, 0]);
 

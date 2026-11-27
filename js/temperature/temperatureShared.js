@@ -145,11 +145,32 @@ function monthlyAnomalies() {
 
 // Current filter values
 // year is null for "All years", quarter is one entry of TEMP_QUARTERS.
+// startMonth is the month where the 12-month window of the year slider begins (0 is January, so a calendar year).
+// A window starting later, for example March 2016 to February 2017, is only used by the temperature charts.
 // span is [first year, last year] when the dashboard's time window covers several but not all years (year is then null).
-const temperatureFilters = { year: null, quarter: TEMP_QUARTERS[0], span: null };
+const temperatureFilters = { year: null, startMonth: 0, quarter: TEMP_QUARTERS[0], span: null };
 
 // True once the filter controls are built
 let temperatureFiltersReady = false;
+
+// Last year of the data, set when the filter controls are built
+let temperatureLastYear = null;
+
+// Optional other use of the year slider, set by a chart (the day view uses it to move month by month)
+// An object with active(), value(), label(), select(position), step(direction) and canStep(direction).
+// Positions count months: year * 12 + month, direction is -1 for back and +1 for forward.
+let temperatureSliderOverride = null;
+
+// Whether the year slider shows a 12-month window that does not start in January
+function temperatureRollingWindow() {
+    return temperatureFilters.year !== null && temperatureFilters.startMonth !== 0;
+}
+
+// Text for a 12-month window that does not start in January, for example "Mar 2016 – Feb 2017"
+function temperatureWindowLabel() {
+    const { year, startMonth } = temperatureFilters;
+    return `${MONTH_LABELS[startMonth]} ${year} – ${MONTH_LABELS[(startMonth + 11) % 12]} ${year + 1}`;
+}
 
 // True on pages that load the shared dashboard state (dashboard.html), false on index.html
 function dashboardSyncActive() {
@@ -174,10 +195,12 @@ function temperatureSpanRows() {
     return rawParsedWeather.filter(row => row.date.getFullYear() >= span[0] && row.date.getFullYear() <= span[1]);
 }
 
-// Days of the selected year, or of the year span, or of every year, that pass the day condition
+// Days of the selected 12-month window, or of the year span, or of every year, that pass the day condition
 function temperatureRows() {
     if (temperatureFilters.year !== null) {
-        return rawParsedWeather.filter(row => row.date.getFullYear() === temperatureFilters.year && temperatureInCondition(row));
+        const windowStart = new Date(temperatureFilters.year, temperatureFilters.startMonth, 1);
+        const windowEnd = new Date(temperatureFilters.year + 1, temperatureFilters.startMonth, 1);
+        return rawParsedWeather.filter(row => row.date >= windowStart && row.date < windowEnd && temperatureInCondition(row));
     }
     return temperatureSpanRows().filter(temperatureInCondition);
 }
@@ -185,6 +208,7 @@ function temperatureRows() {
 // Text for the current year selection, for example "2019", "2016–2019 average" or "10-year average (2015–2025)"
 function temperatureYearLabel() {
     const { year, span } = temperatureFilters;
+    if (temperatureRollingWindow()) return temperatureWindowLabel();
     if (year !== null) return String(year);
     return span ? `${span[0]}–${span[1]} average` : "10-year average (2015–2025)";
 }
@@ -193,29 +217,47 @@ function temperatureYearLabel() {
 function initTemperatureFilters() {
     temperatureFiltersReady = true;
     const years = Array.from(new Set(rawParsedWeather.map(row => row.date.getFullYear()))).sort(d3.ascending);
+    temperatureLastYear = years[years.length - 1];
 
     // "All years" shows the 10-year average, it is a button because it is not a point on the time scale
     document.getElementById("temperatureAllYears")
         .addEventListener("click", () => setTemperatureFilters({ year: null }));
 
     // Year slider
-    // The charts update while dragging. While "All years" is active the slider is grey and keeps its position.
+    // It moves in months: each step shifts a 12-month window by one month, so new months come in on one side
+    // and old months leave on the other. Its positions count months (year * 12 + month).
+    // While a season is selected it only moves in whole years. The charts update while dragging.
+    // While "All years" is active the slider is grey and keeps its position.
     const slider = document.getElementById("temperatureYear");
-    slider.min = years[0];
-    slider.max = years[years.length - 1];
-    slider.value = years[0];
-    const selectSliderYear = () => {
-        if (+slider.value !== temperatureFilters.year) setTemperatureFilters({ year: +slider.value });
-    };
-    slider.addEventListener("input", selectSliderYear);
-    slider.addEventListener("pointerdown", selectSliderYear);  // clicking the grey handle also selects its year
+    slider.min = years[0] * 12;
+    slider.max = temperatureLastYear * 12 + 11;
+    slider.value = years[0] * 12;
+    slider.addEventListener("input", selectSliderPosition);
+    slider.addEventListener("pointerdown", selectSliderPosition);  // clicking the grey handle also selects its position
 
-    // Year labels under the slider, clicking one selects that year
+    // Buttons left and right of the slider, one step back or forward
+    const sliderBox = document.getElementById("temperatureYearSlider");
+    [-1, 1].forEach(direction => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "temperature-step-button";
+        button.dataset.direction = direction;
+        button.textContent = direction < 0 ? "‹" : "›";
+        button.setAttribute("aria-label", direction < 0 ? "One step back" : "One step forward");
+        button.addEventListener("click", () => stepTemperatureSlider(direction));
+        if (direction < 0) sliderBox.before(button);
+        else sliderBox.after(button);
+    });
+
+    // Year labels under the slider, each at the January of its year
+    // Clicking one selects exactly that calendar year.
+    const sliderRange = slider.max - slider.min;
     d3.select("#temperatureYearTicks").selectAll("button")
         .data(years).join("button")
         .attr("type", "button")
+        .style("left", year => `calc(9px + (100% - 18px) * ${(year * 12 - slider.min) / sliderRange})`)
         .text(year => `'${String(year).slice(2)}`)
-        .on("click", (event, year) => setTemperatureFilters({ year }));
+        .on("click", (event, year) => setTemperatureFilters({ year, startMonth: 0 }));
 
     // Season buttons
     d3.select("#temperatureSeasonFilter")
@@ -228,22 +270,88 @@ function initTemperatureFilters() {
     syncTemperatureFilters();
 }
 
+// The active other use of the year slider, or null
+function activeSliderOverride() {
+    return temperatureSliderOverride && temperatureSliderOverride.active() ? temperatureSliderOverride : null;
+}
+
+// Selects the position the year slider was moved to
+function selectSliderPosition() {
+    const slider = document.getElementById("temperatureYear");
+    const position = +slider.value;
+    const override = activeSliderOverride();
+    if (override) {
+        override.select(position);
+        return;
+    }
+    // The window starts at the latest in January of the last year, so it always lies inside the data
+    const start = Math.min(position, temperatureLastYear * 12);
+    let year = Math.floor(start / 12);
+    let startMonth = start % 12;
+    if (temperatureFilters.quarter.months.length < 12) {
+        year = Math.min(Math.round(position / 12), temperatureLastYear);
+        startMonth = 0;
+    }
+    if (year !== temperatureFilters.year || startMonth !== temperatureFilters.startMonth) {
+        setTemperatureFilters({ year, startMonth });
+    }
+}
+
+// Size of one step of the step buttons and the last position a step may reach
+// With a season the window moves in whole years, otherwise in months.
+function sliderStepSize() {
+    return temperatureFilters.quarter.months.length < 12 ? 12 : 1;
+}
+
+// Position one step away from the current one (direction -1 or +1), or null at the edge
+function sliderStepTarget(direction) {
+    const slider = document.getElementById("temperatureYear");
+    const current = +slider.value;
+    const target = current + direction * sliderStepSize();
+    if (target < +slider.min || target > temperatureLastYear * 12) return null;
+    return target;
+}
+
+// Moves the year slider one step back (direction -1) or forward (direction +1)
+function stepTemperatureSlider(direction) {
+    const override = activeSliderOverride();
+    if (override) {
+        override.step(direction);
+        return;
+    }
+    const target = sliderStepTarget(direction);
+    if (target === null) return;
+    document.getElementById("temperatureYear").value = target;
+    selectSliderPosition();
+}
+
 // Makes the filter controls show the current filter values
 function syncTemperatureFilters() {
     const allYears = temperatureFilters.year === null;
     const slider = document.getElementById("temperatureYear");
-    if (!allYears) slider.value = temperatureFilters.year;
+    const override = activeSliderOverride();
+    if (override) slider.value = override.value();
+    else if (!allYears) slider.value = temperatureFilters.year * 12 + temperatureFilters.startMonth;
 
     // The part of the slider left of the handle is coloured (see .temperature-year-slider in dashboard.css)
     slider.style.setProperty("--fill", `${(slider.value - slider.min) / (slider.max - slider.min) * 100}%`);
 
     d3.select("#temperatureYearSlider").classed("inactive", allYears);
     d3.select("#temperatureAllYears").classed("active", allYears).attr("aria-pressed", allYears);
-    d3.select("#temperatureYearValue").text(temperatureFilters.year).style("display", allYears ? "none" : null);
-    d3.selectAll("#temperatureYearTicks button").classed("active", year => year === temperatureFilters.year);
+    d3.select("#temperatureYearValue")
+        .text(override ? override.label() : temperatureRollingWindow() ? temperatureWindowLabel() : temperatureFilters.year)
+        .style("display", allYears ? "none" : null);
+    d3.selectAll("#temperatureYearTicks button")
+        .classed("active", year => year === temperatureFilters.year && !temperatureRollingWindow());
     d3.selectAll("#temperatureSeasonFilter button")
         .classed("active", quarter => quarter === temperatureFilters.quarter)
         .attr("aria-pressed", quarter => quarter === temperatureFilters.quarter);
+
+    // Step buttons are disabled at the edge
+    d3.selectAll(".temperature-step-button").property("disabled", function() {
+        const direction = +this.dataset.direction;
+        return override ? !override.canStep(direction) : sliderStepTarget(direction) === null;
+    });
 }
 
 // Changes the filter values and tells every chart to redraw
@@ -251,12 +359,20 @@ function syncTemperatureFilters() {
 // fromSync is true when the change comes from the shared dashboard state, so it is not sent back to it.
 function setTemperatureFilters(changes, fromSync = false) {
     if (!fromSync && "year" in changes) changes = { ...changes, span: null };
+    // A new year without a start month is a whole calendar year
+    if ("year" in changes && !("startMonth" in changes)) changes = { ...changes, startMonth: 0 };
+    // A season only works with whole years, so a shifted window jumps to the calendar year it mostly covers
+    if ("quarter" in changes && changes.quarter.months.length < 12 && temperatureRollingWindow() && !("year" in changes)) {
+        const { year, startMonth } = temperatureFilters;
+        changes = { ...changes, year: Math.min(startMonth <= 6 ? year : year + 1, temperatureLastYear), startMonth: 0 };
+    }
     Object.assign(temperatureFilters, changes);
     syncTemperatureFilters();
 
     // On the dashboard the year and season are also shared with the other panels
+    // A shifted 12-month window stays inside the temperature charts.
     if (!fromSync && dashboardSyncActive()) {
-        if ("year" in changes) DashSync.setYear(changes.year, "temperature");
+        if ("year" in changes && !temperatureRollingWindow()) DashSync.setYear(changes.year, "temperature");
         if ("quarter" in changes) DashSync.setQuarter(TEMP_QUARTERS.indexOf(changes.quarter), "temperature");
     }
     document.dispatchEvent(new Event("temperatureFiltersChanged"));

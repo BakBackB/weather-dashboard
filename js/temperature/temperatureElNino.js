@@ -239,7 +239,11 @@ function drawTemperatureElNino() {
             // Start and end of the window, both null for the whole period
             let zoomStart = null;
             let zoomEnd = null;
-            if (dashboardSyncActive()) {
+            if (temperatureRollingWindow()) {
+                // A shifted 12-month window of the year slider (only used by the temperature charts)
+                zoomStart = new Date(year, temperatureFilters.startMonth, 1);
+                zoomEnd = new Date(year + 1, temperatureFilters.startMonth, 1);
+            } else if (dashboardSyncActive()) {
                 if (!DashSync.isFull()) {
                     zoomStart = DashSync.range()[0];
                     zoomEnd = d3.timeDay.offset(DashSync.range()[1], 1);

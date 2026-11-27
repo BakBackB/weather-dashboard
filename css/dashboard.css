@@ -457,13 +457,16 @@
     box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.2);
 }
 
+/* Each year label sits at the January of its year (its position is set in temperatureShared.js) */
 .temperature-year-ticks {
-    display: flex;
-    justify-content: space-between;
-    margin: 2px -4px 0;
+    position: relative;
+    height: 16px;
+    margin-top: 2px;
 }
 
 .temperature-year-ticks button {
+    position: absolute;
+    transform: translateX(-50%);
     width: 26px;
     padding: 0;
     border: none;
@@ -489,6 +492,30 @@
 .temperature-year-ticks button.active {
     color: #0284c7;
     font-weight: 700;
+}
+
+/* Buttons left and right of the year slider, one step back or forward */
+.temperature-step-button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 50%;
+    background: #fff;
+    color: #334155;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.temperature-step-button:hover:not(:disabled) {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+.temperature-step-button:disabled {
+    opacity: 0.4;
+    cursor: default;
 }
 
 .temperature-year-value {
@@ -548,7 +575,7 @@
     color: #fff;
 }
 
-/* Sunshine strips below "A Typical Year", folded out with the "☀ Sunshine" button */
+/* Sunshine strips below "Temperature Through the Year", folded out with the "☀ Sunshine" button */
 .temperature-sunshine-strips {
     max-height: 0;
     overflow: hidden;
@@ -559,7 +586,7 @@
     max-height: 400px;
 }
 
-/* Drill-down path of "A Typical Year", e.g. "All years › April › 2019" */
+/* Drill-down path of "Temperature Through the Year", e.g. "All years › April › 2019" */
 .temperature-path {
     display: flex;
     align-items: center;
@@ -651,7 +678,7 @@
     font-size: 11px;
 }
 
-/* One-line usage hint above "A Typical Year" */
+/* One-line usage hint above "Temperature Through the Year" */
 .temperature-chart-hint {
     margin: 0 0 4px;
     color: #64748b;
