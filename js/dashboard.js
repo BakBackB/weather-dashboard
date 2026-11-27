@@ -42,6 +42,14 @@ function buildKpis() {
     const fmt1 = d3.format(".1f");
     const fmt0 = d3.format(",.0f");
 
+    // The figures follow the global time window and season (js/dashboardSync.js); switched-off cities are dimmed.
+    const scoped = DashSync.rows();
+    const scope = document.getElementById("kpiScope");
+    if (scope) {
+        scope.textContent = `Figures for ${DashSync.rangeLabel()}${DashSync.quarter() ? " · " + DashSync.season().label : ""}` +
+            ` · ${d3.format(",")(scoped.length)} daily records`;
+    }
+
     const [firstDay, lastDay] = d3.extent(rawParsedWeather, d => d.date);
     const meta = document.getElementById("dashMeta");
     if (meta) {
@@ -50,8 +58,9 @@ function buildKpis() {
     }
 
     host.innerHTML = KPI_CITIES.map(city => {
-        const rows = rawParsedWeather.filter(d => d.city === city.name);
-        if (!rows.length) return "";
+        const rows = scoped.filter(d => d.city === city.name);
+        const off = DashSync.hasCity(city.name) ? "" : " is-off";
+        if (!rows.length) return `<article class="kpi-city${off}" style="--kpi-color:${city.color}"><header><h2>${city.name}</h2><span>${city.coords}</span></header><p class="kpi-loading">No data in this selection.</p></article>`;
 
         // Annual totals / counts, one row per year.
         const annual = d3.rollups(rows, v => ({
@@ -60,18 +69,18 @@ function buildKpis() {
             heavy: v.filter(d => d.precipitation > 50).length
         }), d => +d.year).sort((a, b) => a[0] - b[0]);
 
-        const hotSlope = kpiSlope(annual.map(([y, c]) => [y, c.hot]));
-        const heavySlope = kpiSlope(annual.map(([y, c]) => [y, c.heavy]));
+        // A trend needs at least three years.
+        const trend = (field, unit) => annual.length >= 3 ? kpiTrendHtml(kpiSlope(annual.map(([y, c]) => [y, c[field]])), unit) : "";
 
         return `
-        <article class="kpi-city" style="--kpi-color:${city.color}">
+        <article class="kpi-city${off}" style="--kpi-color:${city.color}">
             <header><h2>${city.name}</h2><span>${city.coords}</span></header>
             <dl class="kpi-stats">
                 ${kpiStat("Mean temperature", fmt1(d3.mean(rows, d => d.tempMean)), "°C")}
                 ${kpiStat("Rainfall per year", fmt0(d3.mean(annual, ([, c]) => c.rain)), "mm")}
                 ${kpiStat("Mean humidity", fmt0(d3.mean(rows, d => d.humidity)), "%")}
-                ${kpiStat("Hot days &gt;35°C / yr", fmt1(d3.mean(annual, ([, c]) => c.hot)), "days", kpiTrendHtml(hotSlope, "days/yr"))}
-                ${kpiStat("Heavy rain &gt;50 mm / yr", fmt1(d3.mean(annual, ([, c]) => c.heavy)), "days", kpiTrendHtml(heavySlope, "days/yr"))}
+                ${kpiStat("Hot days &gt;35°C / yr", fmt1(d3.mean(annual, ([, c]) => c.hot)), "days", trend("hot", "days/yr"))}
+                ${kpiStat("Heavy rain &gt;50 mm / yr", fmt1(d3.mean(annual, ([, c]) => c.heavy)), "days", trend("heavy", "days/yr"))}
                 ${kpiStat("Sunshine per day", fmt1(d3.mean(rows, d => d.sunshineHours)), "h")}
             </dl>
         </article>`;
@@ -98,4 +107,5 @@ function setupNavSpy() {
 }
 
 document.addEventListener("weatherDataLoaded", buildKpis);
+DashSync.on(detail => { if (detail.source !== "init") buildKpis(); });
 document.addEventListener("DOMContentLoaded", setupNavSpy);

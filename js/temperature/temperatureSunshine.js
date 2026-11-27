@@ -20,7 +20,10 @@ function drawTemperatureSunshine() {
     // Mean temperature and sunshine per city and month (or year), for the selected season and year.
     function getPoints() {
         const inSeason = d => filters.quarter.months.includes(d.date.getMonth());
-        const inYear = d => state.view === "year" || filters.year === null || d.date.getFullYear() === filters.year;
+        const inSpan = d => !filters.span || (d.date.getFullYear() >= filters.span[0] && d.date.getFullYear() <= filters.span[1]);
+        const inYear = d => state.view === "year"
+            ? (filters.year !== null || inSpan(d))
+            : filters.year === null ? inSpan(d) : d.date.getFullYear() === filters.year;
         const keyOf = state.view === "year" ? d => d.date.getFullYear() : d => d.date.getMonth();
         return summarizeGroups(rawParsedWeather.filter(d => inSeason(d) && inYear(d)), d => d.city, keyOf,
             (rows, city, key) => ({
@@ -53,7 +56,7 @@ function drawTemperatureSunshine() {
         if (state.view === "year") {
             return filters.quarter.months.length < 12 ? `${key} (${filters.quarter.label})` : `${key}`;
         }
-        return `${monthName(key)} ${filters.year === null ? "(10-year average)" : filters.year}`;
+        return `${monthName(key)} ${filters.year === null ? `(${temperatureYearLabel()})` : filters.year}`;
     }
 
     // Pearson correlation between temperature and sunshine.
@@ -86,7 +89,9 @@ function drawTemperatureSunshine() {
         showDetail(points);
 
         const cities = TEMP_CITIES.filter(city => document.querySelector(`#cityFilters input[value="${city}"]`).checked);
-        const keys = state.view === "year" ? years : filters.quarter.months;
+        const keys = state.view === "year"
+            ? (filters.year === null && filters.span ? years.filter(y => y >= filters.span[0] && y <= filters.span[1]) : years)
+            : filters.quarter.months;
 
         const margin = { top: 30, right: 60, bottom: 36, left: 60 };
         const width = 850 - margin.left - margin.right;

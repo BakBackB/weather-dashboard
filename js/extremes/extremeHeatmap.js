@@ -8,7 +8,7 @@ function drawExtremeHeatmap() {
     }
     const fullYears = d3.extent(rawParsedWeather, d => Number(d.year));
     let selectedYears = fullYears.slice();
-    let cellYears = fullYears.slice();
+    let cellKey = "full|0";   // the years and season that `lookup` was built for
     let lookup = new Map(fullCells.map(d => [`${d.city}-${d.tempBin}-${d.humidityBin}`, d]));
     const temperatureBins = d3.range(d3.min(fullCells, d => d.tempBin), d3.max(fullCells, d => d.tempBin) + 2, 2);
     const humidityBins = d3.range(d3.min(fullCells, d => d.humidityBin), 100, 5);
@@ -60,6 +60,8 @@ function drawExtremeHeatmap() {
             if (event.type === "end") {
                 brushGroup.call(brush.move, event.selection
                     ? [overviewX(selectedYears[0] - 0.5), overviewX(selectedYears[1] + 0.5)] : null);
+                // The chosen years become the global time window, so every other chart follows.
+                DashSync.setYears(selectedYears[0], selectedYears[1], "heatmap");
             }
         });
     const brushGroup = overview.append("g").attr("class", "extreme-brush").call(brush);
@@ -67,23 +69,39 @@ function drawExtremeHeatmap() {
         selectedYears = fullYears.slice();
         brushGroup.call(brush.move, null);
         render();
+        DashSync.setRange(DashSync.full(), "heatmap");
+    });
+
+    // Follow the global time window and season set by any other chart.
+    DashSync.on(detail => {
+        if (detail.source === "init") return;
+        if (detail.keys.includes("range") && detail.source !== "heatmap") {
+            const [first, last] = DashSync.years();
+            selectedYears = [Math.max(first, fullYears[0]), Math.min(last, fullYears[1])];
+            const whole = selectedYears[0] === fullYears[0] && selectedYears[1] === fullYears[1];
+            brushGroup.call(brush.move, whole ? null
+                : [overviewX(selectedYears[0] - 0.5), overviewX(selectedYears[1] + 0.5)]);
+        }
+        render();
     });
 
     function render() {
         tooltip.hide();
-        document.getElementById("extremeHeatmapYearRange").textContent = selectedYears[0] === selectedYears[1]
-            ? `Showing ${selectedYears[0]}` : `Showing ${selectedYears[0]}–${selectedYears[1]}`;
+        document.getElementById("extremeHeatmapYearRange").textContent = (selectedYears[0] === selectedYears[1]
+            ? `Showing ${selectedYears[0]}` : `Showing ${selectedYears[0]}–${selectedYears[1]}`) +
+            (DashSync.quarter() ? ` · ${DashSync.season().label}` : "");
         overview.selectAll(".extreme-overview-city")
             .style("display", function() { return selectedCities.has(this.dataset.city) ? null : "none"; });
         const host = d3.select("#extreme-heatmap");
         host.selectAll("*").remove();
-        if (selectedYears[0] !== cellYears[0] || selectedYears[1] !== cellYears[1]) {
-            const fullPeriod = selectedYears[0] === fullYears[0] && selectedYears[1] === fullYears[1];
+        const key = `${selectedYears}|${DashSync.quarter()}`;
+        if (key !== cellKey) {
+            const fullPeriod = selectedYears[0] === fullYears[0] && selectedYears[1] === fullYears[1] && !DashSync.quarter();
             const cells = fullPeriod ? fullCells : getExtremeHeatmapCells(rawParsedWeather.filter(d =>
-                Number(d.year) >= selectedYears[0] && Number(d.year) <= selectedYears[1]
+                Number(d.year) >= selectedYears[0] && Number(d.year) <= selectedYears[1] && DashSync.inSeason(d)
             ));
             lookup = new Map(cells.map(d => [`${d.city}-${d.tempBin}-${d.humidityBin}`, d]));
-            cellYears = selectedYears.slice();
+            cellKey = key;
         }
         const cities = EXTREME_CITIES.filter(city => selectedCities.has(city));
         if (!cities.length) {

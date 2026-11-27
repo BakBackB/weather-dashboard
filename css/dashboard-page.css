@@ -375,3 +375,90 @@ body.dashboard-page {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* ---------- Global filter bar (js/dashboardControls.js) ---------- */
+.dash-pill {
+    padding: 5px 12px;
+    border: 1px solid #38bdf8;
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.15);
+    color: #e0f2fe;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.dash-pill:hover { background: rgba(56, 189, 248, 0.3); }
+.dash-pill[hidden] { display: none; }
+
+.gc-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
+    margin-bottom: 8px;
+}
+
+.gc-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gc-label {
+    color: var(--dash-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.chip {
+    padding: 4px 10px;
+    border: 1px solid var(--dash-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--dash-ink);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.chip:hover { border-color: #94a3b8; }
+
+.chip.active {
+    border-color: #0284C7;
+    background: #0284C7;
+    color: #fff;
+}
+
+.chip-city { border-color: var(--chip-color); color: var(--chip-color); }
+.chip-city.active { background: var(--chip-color); border-color: var(--chip-color); color: #fff; }
+
+.gc-timeline svg { display: block; width: 100%; height: auto; }
+.gc-summary { margin: 4px 0 0; color: var(--dash-muted); font-size: 12px; }
+
+.kpi-scope { margin: 0 0 8px; color: var(--dash-muted); font-size: 12px; }
+.kpi-city.is-off { opacity: 0.4; }
+
+.band-correlation { --band: #6d28d9; }
+
+/* Calendar side by side */
+.calendar-compare-note { margin: 0 0 6px; color: var(--dash-muted); font-size: 12px; }
+.calendar-compare .rainfall-day.compare-hover { stroke: #0f172a; stroke-width: 1.5; }
+.rainfall-calendar-layout svg.calendar-compare { max-width: 100%; height: auto; }
+
+#gcReset {
+    margin-left: auto;
+    padding: 5px 14px;
+    border: 1px solid var(--dash-border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--dash-ink);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#gcReset:hover { background: #f1f5f9; }

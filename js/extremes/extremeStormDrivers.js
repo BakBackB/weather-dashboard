@@ -26,6 +26,8 @@ function drawExtremeStormDrivers() {
     let selectedDirectionRange = fullRange.slice();
     let selectedDirection = null;
     let charts = [];
+    const navigators = [];            // the three date brushes; they follow the global time window
+    let directionRestore = null;      // time window before a wind-direction drill-down
 
     const directionKeys = events.some(row => !getExtremeWindDirection(row.windDirection))
         ? [...compass, "Unavailable"] : compass;
@@ -102,12 +104,16 @@ function drawExtremeStormDrivers() {
                     range = start <= end ? [start, end] : [nearest, nearest];
                 }
                 onRange(range);
-                if (event.type === "end") syncBrush(range);
+                if (event.type === "end") {
+                    syncBrush(range);
+                    DashSync.setRange(range, resetId);   // the other charts follow
+                }
             });
         const brushGroup = overview.append("g").attr("class", "extreme-brush").call(brush);
         document.getElementById(resetId).addEventListener("click", () => {
             brushGroup.call(brush.move, null);
             onRange(fullRange.slice());
+            DashSync.setRange(DashSync.full(), resetId);
         });
         function syncBrush(range) {
             const full = +range[0] === +fullRange[0] && +range[1] === +fullRange[1];
@@ -116,6 +122,7 @@ function drawExtremeStormDrivers() {
             const leftEdge = Math.max(0, Math.min(left, width - 2));
             brushGroup.call(brush.move, full ? null : [leftEdge, Math.min(width, Math.max(right, leftEdge + 2))]);
         }
+        navigators.push({ id: resetId, onRange, syncBrush });
         return overview;
     }
 
@@ -255,6 +262,8 @@ function drawExtremeStormDrivers() {
                 .attr("aria-controls", "extreme-storm-direction").text("← All years")
                 .on("click", event => {
                     selectedDirection = null;
+                    if (directionRestore) DashSync.setRange(directionRestore, "extremeDirectionResetRange");
+                    directionRestore = null;
                     drawDirection();
                     drawRangeWindRoses();
                     if (event.detail === 0) d3.select("#extreme-storm-direction")
@@ -333,6 +342,9 @@ function drawExtremeStormDrivers() {
         const show = (event, row) => tooltip.show(event, directionDescription(row));
         const open = (event, row) => {
             selectedDirection = { city: row.city, year: row.year };
+            // Drilling into a year makes that year the global time window (the back button restores it).
+            directionRestore = DashSync.range();
+            DashSync.setYear(row.year, "extremeDirectionResetRange");
             drawDirection();
             drawRangeWindRoses();
             if (event.type === "keydown") navigation.selectAll("button").node()?.focus();
@@ -422,6 +434,23 @@ function drawExtremeStormDrivers() {
         if (row.total === 0) centre.append("text").attr("class", "extreme-axis-label")
             .attr("text-anchor", "middle").attr("y", 5).text("0 days");
     }
+
+    // Follow the global time window and season set by any other chart.
+    DashSync.on(detail => {
+        if (detail.source === "init") return;
+        if (detail.keys.includes("range")) {
+            const range = DashSync.range().map(clampDate);
+            navigators.filter(nav => nav.id !== detail.source).forEach(nav => {
+                nav.onRange(range.slice());
+                nav.syncBrush(range);
+            });
+        }
+        if (detail.keys.includes("quarter")) {
+            renderDaily(wind);
+            renderDaily(sunshine);
+            renderDirection();
+        }
+    });
 
     renderDaily(wind);
     renderDaily(sunshine);

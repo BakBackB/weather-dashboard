@@ -189,20 +189,29 @@ function drawTemperatureElNino() {
             .text("Drag to zoom:");
         const brush = d3.brushX()
             .extent([[0, 0], [width, contextHeight]])
-            .on("brush end", ({ selection }) => {
+            .on("brush end", ({ selection, sourceEvent, type }) => {
                 x.domain(selection ? selection.map(xContext.invert) : xContext.domain());
                 render();
+                // A brush made by the user is the global time window (whole months); the other charts follow.
+                if (sourceEvent && type === "end") {
+                    if (!selection) DashSync.setRange(DashSync.full(), "elnino");
+                    else {
+                        const [from, to] = selection.map(xContext.invert);
+                        DashSync.setRange([d3.timeMonth.round(from), d3.timeDay.offset(d3.timeMonth.round(to), -1)], "elnino");
+                    }
+                }
             });
         const brushGroup = context.append("g").call(brush);
 
         // The shared year filter zooms the timeline to that year (the season filter does not apply to a timeline).
         // The brush glides to the new range, so the chart zooms smoothly.
         function zoomToYear(animate) {
-            const year = temperatureFilters.year;
-            // "All years" glides to the full range first and then removes the brush.
-            const range = year === null ? xContext.range() : [new Date(year, 0, 1), new Date(year + 1, 0, 1)].map(xContext);
+            // The global time window (set by any chart); the whole period glides out and then removes the brush.
+            const whole = DashSync.isFull();
+            const range = whole ? xContext.range()
+                : [DashSync.range()[0], d3.timeDay.offset(DashSync.range()[1], 1)].map(xContext);
             const clear = () => {
-                if (year === null) brushGroup.call(brush.move, null);
+                if (whole) brushGroup.call(brush.move, null);
             };
             if (animate) brushGroup.transition().duration(TEMP_DURATION).call(brush.move, range).on("end", clear);
             else {
@@ -210,7 +219,7 @@ function drawTemperatureElNino() {
                 clear();
             }
         }
-        document.addEventListener("temperatureFiltersChanged", () => zoomToYear(true));
+        DashSync.on(detail => { if (detail.source !== "elnino") zoomToYear(true); }, ["range"]);
 
         render();
         zoomToYear(false);

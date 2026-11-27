@@ -1,0 +1,305 @@
+/* Advanced Interactive Analytics (js/correlation.js). Cards reuse .card / .card-head from dashboard-page.css. */
+
+.corr-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.corr-grid .card-wide {
+    grid-column: 1 / -1;
+}
+
+.corr-note {
+    margin: 0 0 8px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.corr-scatter {
+    position: relative;
+    width: 100%;
+    max-width: 850px;
+    margin: 0 auto;
+    aspect-ratio: 850 / 480;
+}
+
+.corr-scatter canvas,
+.corr-scatter svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.corr-scatter svg {
+    max-width: none;
+    overflow: visible;
+}
+
+.corr-grid-lines line {
+    stroke: #e2e8f0;
+    stroke-dasharray: 4, 4;
+}
+
+.corr-axis-label {
+    fill: #64748b;
+    font-size: 12px;
+}
+
+.corr-brush .selection {
+    fill: #0284c7;
+    fill-opacity: 0.12;
+    stroke: #0369a1;
+    stroke-width: 1.5;
+}
+
+.corr-tooltip {
+    z-index: 5;
+    white-space: nowrap;
+}
+
+.corr-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    justify-content: center;
+    margin: 6px 0 4px;
+    color: #475569;
+    font-size: 12px;
+}
+
+.corr-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.corr-legend-item i {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+}
+
+.corr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.corr-selection-text {
+    flex: 1 1 200px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.corr-btn {
+    padding: 6px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.corr-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+}
+
+.corr-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+#corrPush:not(:disabled) {
+    border-color: #0284c7;
+    background: #0284c7;
+    color: #fff;
+}
+
+/* ----- linked views ----- */
+.corr-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 6px;
+}
+
+.corr-stat dt {
+    color: #64748b;
+    font-size: 11px;
+}
+
+.corr-stat dd {
+    margin: 2px 0 0;
+    color: #1e293b;
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.corr-stat dd small {
+    margin-left: 2px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.corr-hist svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.corr-hist-title {
+    fill: #334155;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.corr-city-name,
+.corr-city-count {
+    fill: #475569;
+    font-size: 11px;
+}
+
+/* ----- drill-down ----- */
+.corr-drill-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.corr-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.corr-path-step {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #0284c7;
+    font: inherit;
+    cursor: pointer;
+}
+
+.corr-path-step:hover {
+    text-decoration: underline;
+}
+
+.corr-path-sep {
+    color: #94a3b8;
+}
+
+.corr-path-current {
+    color: #334155;
+    font-weight: 600;
+}
+
+.corr-segment {
+    display: inline-flex;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.corr-segment button {
+    padding: 5px 12px;
+    border: none;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.corr-segment button.active {
+    background: #2c3e50;
+    color: #fff;
+}
+
+.corr-drill {
+    max-height: 380px;
+    overflow: auto;
+}
+
+.corr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.corr-table th {
+    position: sticky;
+    top: 0;
+    padding: 6px 10px;
+    border-bottom: 2px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    font-weight: 600;
+    text-align: left;
+}
+
+.corr-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.corr-row-click {
+    cursor: pointer;
+}
+
+.corr-row-click:hover,
+.corr-row-click:focus-visible {
+    background: #f0f9ff;
+    outline: none;
+}
+
+.corr-bar-cell {
+    width: 28%;
+}
+
+.corr-inline-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: #7dd3fc;
+}
+
+.corr-day-wrap {
+    max-height: 320px;
+    overflow: auto;
+}
+
+.corr-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    border-radius: 50%;
+}
+
+.corr-empty {
+    margin: 12px 0;
+    color: #64748b;
+    text-align: center;
+}
+
+@media (max-width: 1100px) {
+    .corr-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

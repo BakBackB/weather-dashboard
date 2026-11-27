@@ -1,5 +1,5 @@
 function drawExtremeTrends() {
-    const data = getAnnualExtremeData();
+    let data = getAnnualExtremeData();   // follows the global season (see the DashSync listener at the end)
     if (data.length === 0) return;
 
     const fullYears = d3.extent(data, d => d.year);
@@ -19,7 +19,8 @@ function drawExtremeTrends() {
         let selectedYears = fullYears.slice();
         const thresholdInput = document.getElementById(`${field}ChangeThreshold`);
         // Compute changes before zooming so the first visible year keeps its true comparison.
-        const chartData = getAnnualExtremeChanges(data, field);
+        let chartData = getAnnualExtremeChanges(data, field);
+        const sourceName = `trend-${field}`;
         const visibleCities = new Set(cities);
         const svg = d3.select(container).append("svg")
             .attr("width", 850)
@@ -93,7 +94,8 @@ function drawExtremeTrends() {
         const highlights = svg.append("g");
 
         function updateChart() {
-            x.domain(selectedYears);
+            // One selected year: pad the axis so the year sits in the middle.
+            x.domain(selectedYears[0] === selectedYears[1] ? [selectedYears[0] - 0.5, selectedYears[1] + 0.5] : selectedYears);
             xAxis.call(d3.axisBottom(x)
                 .tickValues(d3.range(selectedYears[0], selectedYears[1] + 1))
                 .tickFormat(d3.format("d")));
@@ -181,6 +183,8 @@ function drawExtremeTrends() {
                 updateChart();
                 if (event.type === "end") {
                     brushGroup.call(brush.move, event.selection ? selectedYears.map(overviewX) : null);
+                    // The chosen years become the global time window, so every other chart follows.
+                    DashSync.setYears(selectedYears[0], selectedYears[1], sourceName);
                 }
             });
         const brushGroup = overview.append("g").attr("class", "extreme-brush").call(brush);
@@ -189,10 +193,45 @@ function drawExtremeTrends() {
             selectedYears = fullYears.slice();
             brushGroup.call(brush.move, null);
             updateChart();
+            DashSync.setRange(DashSync.full(), sourceName);
         });
+
+        // Follow the global time window set by any other chart.
+        function applyGlobalRange() {
+            const [first, last] = DashSync.years();
+            selectedYears = [Math.max(first, fullYears[0]), Math.min(last, fullYears[1])];
+            const whole = selectedYears[0] === fullYears[0] && selectedYears[1] === fullYears[1];
+            const pad = selectedYears[0] === selectedYears[1] ? (overviewX(fullYears[0] + 1) - overviewX(fullYears[0])) / 2 : 0;
+            brushGroup.call(brush.move, whole ? null : selectedYears.map(overviewX).map((v, i) => v + (i ? pad : -pad)));
+            updateChart();
+        }
+
+        // A new season: recount the days from the season's months only.
+        function applySeason() {
+            chartData = getAnnualExtremeChanges(data, field);
+            overviewY.domain([0, d3.max(data, d => d[field]) || 1]);
+            overview.selectAll(".extreme-overview-city").each(function() {
+                d3.select(this).datum(data.filter(d => d.city === this.dataset.city))
+                    .attr("d", d3.line().x(d => overviewX(d.year)).y(d => overviewY(d[field])));
+            });
+            updateChart();
+        }
         updateChart();
+        return { sourceName, applyGlobalRange, applySeason };
     }
 
-    drawChart("#hot-days-chart", "hotDays", "Hot days", "#extremeCityFilters");
-    drawChart("#heavy-rain-days-chart", "heavyRainDays", "Heavy rainfall days", "#heavyRainCityFilters");
+    const charts = [
+        drawChart("#hot-days-chart", "hotDays", "Hot days", "#extremeCityFilters"),
+        drawChart("#heavy-rain-days-chart", "heavyRainDays", "Heavy rainfall days", "#heavyRainCityFilters")
+    ];
+    DashSync.on(detail => {
+        if (detail.source === "init") return;
+        if (detail.keys.includes("quarter")) {
+            data = getAnnualExtremeData(DashSync.rowsInSeason());
+            charts.forEach(chart => chart.applySeason());
+        }
+        if (detail.keys.includes("range")) {
+            charts.filter(chart => chart.sourceName !== detail.source).forEach(chart => chart.applyGlobalRange());
+        }
+    });
 }

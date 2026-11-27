@@ -145,7 +145,7 @@ function getExtremeHeatmapCells(rows) {
 // Keep daily observations unchanged; missing wind/sunshine values remain unavailable.
 function getExtremeStormEvents(rows, range) {
     return rows.filter(row => Number.isFinite(row.date?.getTime()) &&
-        row.date >= range[0] && row.date <= range[1] &&
+        row.date >= range[0] && row.date <= range[1] && DashSync.inSeason(row) &&
         Number.isFinite(row.precipitation) && row.precipitation > EXTREME_RAIN_THRESHOLD)
         .sort((a, b) => a.date - b.date);
 }

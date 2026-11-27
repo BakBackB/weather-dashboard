@@ -353,8 +353,58 @@ function rainfallByPeriod(level, filterFn = () => true) {
     );
 }
 
+// --- Link to the global time window (js/dashboardSync.js) ---
+// Drilling into a year or a month makes it the global time window, so every other chart follows;
+// the back button returns to the window that was set before the first drill-down.
+let rainfallBaseRange = null;
+let skipRainfallSync = false;
+
+function syncRainfallToDashboard() {
+    if (typeof DashSync === "undefined" || !DashSync.ready || skipRainfallSync) return;
+    if (rainfallState.level === "year") {
+        if (rainfallBaseRange) DashSync.setRange(rainfallBaseRange, "rainfall");
+        rainfallBaseRange = null;
+        return;
+    }
+    if (!rainfallBaseRange) rainfallBaseRange = DashSync.range();
+    const year = rainfallState.year;
+    const month = rainfallState.level === "day" ? rainfallState.month : null;
+    DashSync.setRange(month
+        ? [new Date(year, month - 1, 1), new Date(year, month, 0)]
+        : [new Date(year, 0, 1), new Date(year, 11, 31)], "rainfall");
+}
+
+// Rows of the whole years inside the global time window and of the global season.
+const rainfallInWindow = d => {
+    const [first, last] = DashSync.years();
+    const year = d.date.getFullYear();
+    return year >= first && year <= last && DashSync.inSeason(d);
+};
+
+if (typeof DashSync !== "undefined") {
+    DashSync.on(detail => {
+        if (detail.source === "init" || detail.source === "rainfall") return;
+        if (detail.keys.includes("range") && rainfallState.level !== "year") {
+            const year = DashSync.singleYear();
+            if (year !== null) {
+                rainfallState.year = year;
+                if (rainfallState.level === "day") rainfallState.level = "month";
+                rainfallState.month = null;
+            } else {
+                Object.assign(rainfallState, { level: "year", city: null, year: null, month: null });
+                rainfallBaseRange = null;
+            }
+            selectedRainfallDate = null;
+        }
+        skipRainfallSync = true;   // the window was set elsewhere: do not send it back
+        drawRainfallChart();
+        skipRainfallSync = false;
+    }, ["range", "quarter"]);
+}
+
 // Draw rainfall chart based on the current state (year, month, day).
 function drawRainfallChart() {
+    syncRainfallToDashboard();
     const container = d3.select("#rainfall-chart");
     container.selectAll("*").remove();
     hideRainfallTooltip();
@@ -369,12 +419,12 @@ function drawRainfallChart() {
     let data = [];
 
     if (rainfallState.level === "year") {
-        data = rainfallByPeriod("year");
+        data = rainfallByPeriod("year", rainfallInWindow);
     } else if (rainfallState.level === "month") {
         data = rainfallByPeriod(
             "month",
             d => d.city === rainfallState.city &&
-                 d.date.getFullYear() === rainfallState.year
+                 d.date.getFullYear() === rainfallState.year && DashSync.inSeason(d)
         );
     } else {
         data = rainfallByPeriod(
@@ -907,9 +957,9 @@ function drawCalendarHeatmap() {
     const isMonthView = rainfallState.level === "day" && Number.isInteger(rainfallState.month);
 
     // A city and year are selected after the user clicks an annual bar.
+    // No city yet: the three cities are shown side by side for the selected year (js/dashboardViews.js).
     if (!rainfallState.city || !rainfallState.year) {
-        container.append("p")
-            .text("Click an annual rainfall bar to view its daily calendar.");
+        drawRainfallCalendarCompare(container);
         return;
     }
 
@@ -1040,7 +1090,7 @@ function drawPrecipitationHumidityChart() {
         : rainfallState.city ? [rainfallState.city] : [];
     const scopedRows = rawParsedWeather.filter(d =>
         cities.includes(d.city) &&
-        (!rainfallState.year || d.date.getFullYear() === rainfallState.year) &&
+        (rainfallState.year ? d.date.getFullYear() === rainfallState.year && DashSync.inSeason(d) : rainfallInWindow(d)) &&
         (!isDailyMonth || d.date.getMonth() + 1 === rainfallState.month)
     );
 
@@ -1265,7 +1315,7 @@ function drawPrecipitationHumidityChart() {
             date: new Date(2000, month, 15),
             positionDate: new Date(2000, month, 15),
             cities: cities.map(city => data.find(d => d.city === city && d.month === month)).filter(Boolean)
-        }));
+        })).filter(d => d.cities.length > 0);
     chart.selectAll(".precipitation-humidity-hit")
         .data(tooltipData)
         .join("rect")

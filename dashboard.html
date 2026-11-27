@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/extremes.css">
     <!-- Layout of this one-page dashboard (cards, KPI row, grid) -->
     <link rel="stylesheet" href="css/dashboard-page.css">
+    <link rel="stylesheet" href="css/correlation.css">
     <!-- Load D3.js v7 -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
@@ -24,19 +25,40 @@
                 <h1>Cross-Regional Weather Dynamics in Vietnam</h1>
                 <p id="dashMeta">Hanoi · Da Nang · Ho Chi Minh City · daily data from Open-Meteo</p>
             </div>
+            <button id="dashFilterPill" class="dash-pill" type="button" hidden title="Clear all filters"></button>
             <nav class="dash-nav" aria-label="Dashboard sections">
-                <a href="#kpis" data-spy="kpis">Overview</a>
+                <a href="#controls" data-spy="controls">Overview</a>
                 <a href="#temperature" data-spy="temperature">Temperature</a>
                 <a href="#rainfall" data-spy="rainfall">Rainfall</a>
                 <a href="#extremes" data-spy="extremes">Extreme weather</a>
+                <a href="#correlation" data-spy="correlation">Explore</a>
             </nav>
         </div>
     </header>
 
     <main class="dash">
 
-        <!-- ===== KPI scorecard (filled by js/dashboard.js from the loaded data) ===== -->
+        <!-- ===== Global filters: one shared state for every chart (js/dashboardSync.js) ===== -->
+        <section id="controls" class="dash-section" aria-label="Global filters">
+            <article class="card card-wide controls-card">
+                <header class="card-head">
+                    <h3>Global filters</h3>
+                    <p>Drag on the timeline, click a year, or pick a season or cities. Every chart follows, and a brush or a drill-down in any chart updates this bar too. Shift-click a year to extend the window.</p>
+                </header>
+                <div class="gc-row">
+                    <div class="gc-group"><span class="gc-label">Year</span><div id="gcYears" class="chip-row"></div></div>
+                    <div class="gc-group"><span class="gc-label">Season</span><div id="gcSeasons" class="chip-row"></div></div>
+                    <div class="gc-group"><span class="gc-label">Cities</span><div id="gcCities" class="chip-row"></div></div>
+                    <button id="gcReset" class="extreme-reset" type="button">Reset all</button>
+                </div>
+                <div id="gcTimeline" class="gc-timeline"></div>
+                <p id="gcSummary" class="gc-summary" aria-live="polite"></p>
+            </article>
+        </section>
+
+        <!-- ===== KPI scorecard (filled by js/dashboard.js; follows the global filters) ===== -->
         <section id="kpis" class="dash-section" aria-label="Key figures by city">
+            <p id="kpiScope" class="kpi-scope"></p>
             <div id="kpiRow" class="kpi-row">
                 <p class="kpi-loading">Loading data…</p>
             </div>
@@ -179,7 +201,7 @@
                 <article class="card card-wide">
                     <header class="card-head">
                         <h3>Daily Rainfall Calendar</h3>
-                        <p>Click an annual bar in “Rainfall by City” to load that city and year here.</p>
+                        <p>Side by side: the three cities in the selected year, on one colour scale. Click an annual bar in “Rainfall by City” to focus on one city instead.</p>
                     </header>
                     <div class="rainfall-calendar-layout">
                         <div id="rainfall-heatmap"></div>
@@ -361,6 +383,18 @@
             </div>
         </section>
 
+        <!-- ===== Linked views: scatter + distributions that share the filtered data ===== -->
+        <section id="correlation" class="dash-section">
+            <div class="band band-correlation">
+                <span class="band-tag">Explore</span>
+                <div>
+                    <h2>Interactive Correlation Dashboard</h2>
+                    <p>How do humidity, temperature, sunshine and rainfall relate? Brush the scatter plot and the linked views update.</p>
+                </div>
+            </div>
+            <div id="correlationRoot"></div>
+        </section>
+
         <footer class="dash-footer">
             Data: Open-Meteo Historical Weather API (daily, 2015–2025) · NOAA Oceanic Niño Index ·
             Hanoi 21.03°N 105.85°E · Da Nang 16.05°N 108.20°E · Ho Chi Minh City 10.82°N 106.63°E
@@ -369,6 +403,7 @@
 
     <!-- Same modular scripts as index.html (tabs.js is not needed: no tabs here) -->
     <script src="js/utils.js"></script>
+    <script src="js/dashboardSync.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/extremes/extremeShared.js"></script>
     <script src="js/extremes/extremeTrends.js"></script>
@@ -381,7 +416,10 @@
     <script src="js/temperature/temperatureSunshine.js"></script>
     <script src="js/temperature/temperatureElNino.js"></script>
     <script src="js/main.js"></script>
-    <!-- Dashboard-only: KPI row + nav highlight -->
+    <!-- Dashboard-only: shared views, global filter bar, correlation views, KPI row + nav highlight -->
+    <script src="js/dashboardViews.js"></script>
+    <script src="js/dashboardControls.js"></script>
+    <script src="js/correlation.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
 </html>

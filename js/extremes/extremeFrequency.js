@@ -1,13 +1,18 @@
 function drawExtremeFrequency() {
-    const annual = getAnnualExtremeData();
+    // Annual counts of the global season (all years); the global time window decides which years are drawn.
+    let annualSeason = getAnnualExtremeData();
+    const annualInWindow = () => {
+        const [first, last] = DashSync.years();
+        return annualSeason.filter(d => d.year >= first && d.year <= last);
+    };
     const monthly = getMonthlyExtremeData();
     const months = EXTREME_MONTHS;
     const cities = EXTREME_CITIES;
     const color = extremeCityColorScale();
     const tooltip = extremeCreateTooltip();
     const panels = [
-        { container: "#extreme-frequency-hot", path: "#extreme-frequency-hot-path", field: "hotDays", label: "Hot days (>35°C)", selected: null },
-        { container: "#extreme-frequency-rain", path: "#extreme-frequency-rain-path", field: "heavyRainDays", label: "Heavy rainfall days (>50 mm)", selected: null }
+        { container: "#extreme-frequency-hot", path: "#extreme-frequency-hot-path", field: "hotDays", label: "Hot days (>35°C)", selected: null, restore: null },
+        { container: "#extreme-frequency-rain", path: "#extreme-frequency-rain-path", field: "heavyRainDays", label: "Heavy rainfall days (>50 mm)", selected: null, restore: null }
     ];
     ["#extremeFrequencyLegend", "#extremeRainFrequencyLegend"].forEach(container => {
         extremeDrawLegend(container, cities, color, "extreme-frequency");
@@ -18,7 +23,7 @@ function drawExtremeFrequency() {
         const { container, path, field, label, selected } = panel;
         const rows = selected
             ? monthly.filter(d => d.city === selected.city && d.year === selected.year)
-            : annual;
+            : annualInWindow();
         const navigation = d3.select(path);
         navigation.selectAll("*").remove();
         navigation.attr("hidden", selected ? null : true);
@@ -29,6 +34,9 @@ function drawExtremeFrequency() {
                 .attr("aria-label", "Back to all cities and years").text("← All years")
                 .on("click", event => {
                     panel.selected = null;
+                    // Back from a drill-down: return to the time window that was set before it.
+                    if (panel.restore) DashSync.setRange(panel.restore, panel.field);
+                    panel.restore = null;
                     drawPanel(panel);
                     if (event.detail === 0) {
                         // Restore keyboard focus to the annual bar that opened this view.
@@ -53,7 +61,7 @@ function drawExtremeFrequency() {
         const x = d3.scaleBand().domain(keys).range([0, width]).padding(0.18);
         const cityX = d3.scaleBand().domain(cities).range([0, x.bandwidth()]).padding(0.12);
         // Each level keeps its own fixed scale across cities and years.
-        const y = d3.scaleLinear().domain([0, d3.max(selected ? monthly : annual, d => d[field]) || 1])
+        const y = d3.scaleLinear().domain([0, d3.max(selected ? monthly : annualSeason, d => d[field]) || 1])
             .nice().range([height, 0]);
         extremeAddAxes(plot, x, y, width, height, selected ? "Month" : "Year", "Number of days",
             d3.axisBottom(x).tickFormat(selected ? month => months[month] : d3.format("d")),
@@ -66,6 +74,8 @@ function drawExtremeFrequency() {
             .attr("class", "extreme-frequency-item").attr("tabindex", 0)
             .attr("role", selected ? "img" : "button")
             .attr("aria-label", d => describe(d) + (selected ? "" : ". Show monthly counts"));
+        // With a season selected, months outside it are faded.
+        if (selected && DashSync.quarter()) marks.attr("opacity", d => DashSync.season().months.includes(d.month) ? 1 : 0.25);
         marks.append("rect")
             .attr("class", d => d[field] === 0 ? "extreme-frequency-bar extreme-zero-bar" : "extreme-frequency-bar")
             .attr("x", barX).attr("y", d => d[field] === 0 ? height - 2 : y(d[field]))
@@ -87,7 +97,10 @@ function drawExtremeFrequency() {
             .on("focus", show).on("blur", tooltip.hide);
         if (!selected) {
             const openMonths = (event, d) => {
+                // Drilling into a year makes that year the global time window.
+                panel.restore = DashSync.range();
                 panel.selected = d;
+                DashSync.setYear(d.year, panel.field);
                 drawPanel(panel);
                 if (event.type === "keydown") {
                     d3.select(path).selectAll("button").node()?.focus();
@@ -102,4 +115,19 @@ function drawExtremeFrequency() {
         }
     }
     panels.forEach(drawPanel);
+
+    // Follow the global time window and season set by any other chart.
+    DashSync.on(detail => {
+        if (detail.source === "init") return;
+        if (detail.keys.includes("quarter")) annualSeason = getAnnualExtremeData(DashSync.rowsInSeason());
+        const [first, last] = DashSync.years();
+        panels.filter(panel => panel.field !== detail.source).forEach(panel => {
+            // A drill-down to a year that left the time window closes.
+            if (panel.selected && (panel.selected.year < first || panel.selected.year > last)) {
+                panel.selected = null;
+                panel.restore = null;
+            }
+            drawPanel(panel);
+        });
+    });
 }
