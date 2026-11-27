@@ -445,7 +445,7 @@ function drawExtremeStormDrivers() {
                 nav.syncBrush(range);
             });
         }
-        if (detail.keys.includes("quarter")) {
+        if (detail.keys.includes("quarter") || detail.keys.includes("condition")) {
             renderDaily(wind);
             renderDaily(sunshine);
             renderDirection();

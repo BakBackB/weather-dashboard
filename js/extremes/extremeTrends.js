@@ -226,7 +226,7 @@ function drawExtremeTrends() {
     ];
     DashSync.on(detail => {
         if (detail.source === "init") return;
-        if (detail.keys.includes("quarter")) {
+        if (detail.keys.includes("quarter") || detail.keys.includes("condition")) {
             data = getAnnualExtremeData(DashSync.rowsInSeason());
             charts.forEach(chart => chart.applySeason());
         }

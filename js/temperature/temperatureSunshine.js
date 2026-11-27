@@ -25,7 +25,7 @@ function drawTemperatureSunshine() {
             ? (filters.year !== null || inSpan(d))
             : filters.year === null ? inSpan(d) : d.date.getFullYear() === filters.year;
         const keyOf = state.view === "year" ? d => d.date.getFullYear() : d => d.date.getMonth();
-        return summarizeGroups(rawParsedWeather.filter(d => inSeason(d) && inYear(d)), d => d.city, keyOf,
+        return summarizeGroups(rawParsedWeather.filter(d => inSeason(d) && inYear(d) && DashSync.inCondition(d)), d => d.city, keyOf,
             (rows, city, key) => ({
                 city,
                 key,

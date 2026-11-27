@@ -169,7 +169,7 @@ function drawTemperatureTypicalYear() {
 
         // The 10-year average, or one year's months when a year is selected.
         const rows = temperatureRows();
-        const values = filters.year === null && !filters.span ? climate : monthlyValues(rows);
+        const values = filters.year === null && !filters.span && !DashSync.condition() ? climate : monthlyValues(rows);
         const months = filters.quarter.months;
 
         // All 12 months are drawn; the season sets the visible part, so a new season zooms instead of jumping.
@@ -269,7 +269,7 @@ function drawTemperatureTypicalYear() {
     // Level 2: the clicked month in every year, the clicked city highlighted.
     function drawMonth(d) {
         const monthName = d3.timeFormat("%B")(new Date(2000, d.month, 1));
-        const perYear = summarizeGroups((filters.year === null ? temperatureSpanRows() : rawParsedWeather).filter(r => r.date.getMonth() === d.month),
+        const perYear = summarizeGroups((filters.year === null ? temperatureSpanRows() : rawParsedWeather).filter(r => r.date.getMonth() === d.month && DashSync.inCondition(r)),
             r => r.city, r => r.date.getFullYear(), (v, city, year) => ({
                 city, year,
                 mean: average(v, r => r.tempMean),

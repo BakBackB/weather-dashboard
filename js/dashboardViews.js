@@ -39,7 +39,8 @@ function drawRainfallCalendarCompare(container) {
     container.append("p").attr("class", "calendar-compare-note")
         .text(`${note}All cities share one colour scale (0–${d3.format(",.0f")(maxRainfall)} mm per day), so the same colour always means the same rainfall. ` +
             "Hover a day to see that date in every city; click a day for details." +
-            (DashSync.quarter() ? ` Months outside ${season.label} are faded.` : ""));
+            (DashSync.quarter() ? ` Months outside ${season.label} are faded.` : "") +
+            (DashSync.condition() ? ` Days outside the scatter-plot filter (${DashSync.conditionLabel()}) are faded.` : ""));
 
     const svg = container.append("svg")
         .attr("class", "calendar-compare")
@@ -81,7 +82,7 @@ function drawRainfallCalendarCompare(container) {
             .attr("width", cellSize).attr("height", cellSize).attr("rx", 2)
             .attr("fill", d => color(d.precipitation))
             .attr("stroke", d => d.precipitation === 0 ? "#cbd5e1" : "none")
-            .attr("opacity", d => season.months.includes(d.date.getMonth()) ? 1 : 0.2)
+            .attr("opacity", d => season.months.includes(d.date.getMonth()) && DashSync.inCondition(d) ? 1 : 0.2)
             .style("cursor", "pointer")
             .on("click", (event, d) => showRainfallDetail(d))
             .on("pointerenter", (event, d) => {

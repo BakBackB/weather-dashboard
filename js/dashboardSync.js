@@ -3,6 +3,8 @@
 //   range    – time window [first day, last day] (inclusive). Default: the whole data set.
 //   quarter  – season index into DASH_SEASONS (0 = all months).
 //   cities   – set of cities that are switched on.
+//   condition – optional day filter { humidity: [min, max], temp: [min, max] }, set from the scatter plot's
+//               brush: only days inside this box are counted by the charts.
 //
 // Any chart can read the state and any chart can change it. A change is announced with the
 // "dashsync" event on document: detail = { keys: ["range"|"quarter"|"cities"], source, state }.
@@ -21,7 +23,7 @@ const DASH_SEASONS = [
 ];
 
 const DashSync = (() => {
-    const state = { range: null, quarter: 0, cities: new Set(DASH_CITIES) };
+    const state = { range: null, quarter: 0, cities: new Set(DASH_CITIES), condition: null };
     let full = null;
     const saved = [];                         // ranges remembered before a drill-down, see push()/pop()
     const sameDay = (a, b) => +d3.timeDay.floor(a) === +d3.timeDay.floor(b);
@@ -102,22 +104,47 @@ const DashSync = (() => {
             api.setCities(next, source);
         },
 
+        // ---- day condition (humidity / temperature box) ----
+        condition: () => state.condition ? { humidity: state.condition.humidity.slice(), temp: state.condition.temp.slice() } : null,
+        setCondition(condition, source) {
+            if (!condition && !state.condition) return;
+            state.condition = condition ? { humidity: condition.humidity.slice(), temp: condition.temp.slice() } : null;
+            emit(["condition"], source);
+        },
+        inCondition(row) {
+            const c = state.condition;
+            if (!c) return true;
+            return row.humidity >= c.humidity[0] && row.humidity <= c.humidity[1] &&
+                row.tempMean >= c.temp[0] && row.tempMean <= c.temp[1];
+        },
+        conditionLabel() {
+            const c = state.condition;
+            if (!c) return "";
+            const f1 = d3.format(".1f"), f0 = d3.format(".0f");
+            return `Temp ${f1(c.temp[0])}–${f1(c.temp[1])} °C · humidity ${f0(c.humidity[0])}–${f0(c.humidity[1])} %`;
+        },
+
         reset(source) {
             state.range = full.slice();
+            state.condition = null;
             state.quarter = 0;
             state.cities = new Set(DASH_CITIES);
             saved.length = 0;
-            emit(["range", "quarter", "cities"], source);
+            emit(["range", "quarter", "cities", "condition"], source);
         },
 
         // ---- row filters (shared data) ----
         inRange: row => row.date >= state.range[0] && row.date <= state.range[1],
-        inSeason: row => state.quarter === 0 || DASH_SEASONS[state.quarter].months.includes(row.date.getMonth()),
+        inSeasonOnly: row => state.quarter === 0 || DASH_SEASONS[state.quarter].months.includes(row.date.getMonth()),
+        // Season AND day condition: the filter every chart applies to its daily rows.
+        inSeason: row => api.inSeasonOnly(row) && api.inCondition(row),
         inCity: row => state.cities.has(row.city),
-        // Daily rows inside the time window and season (and the switched-on cities if cities = true).
-        rows(cities = false) {
+        // Daily rows inside the time window, season and day condition (and the switched-on cities if cities = true).
+        // withCondition = false ignores the day condition: the scatter plot needs the days it is selecting from.
+        rows(cities = false, withCondition = true) {
             return rawParsedWeather.filter(row =>
-                api.inRange(row) && api.inSeason(row) && (!cities || api.inCity(row)));
+                api.inRange(row) && (withCondition ? api.inSeason(row) : api.inSeasonOnly(row)) &&
+                (!cities || api.inCity(row)));
         },
         // Same, but the season only (time window ignored): for charts that draw their own time axis.
         rowsInSeason() {
@@ -133,7 +160,7 @@ const DashSync = (() => {
             if (wholeYears) return a.getFullYear() === b.getFullYear() ? String(a.getFullYear()) : `${a.getFullYear()}–${b.getFullYear()}`;
             return `${fmt(a)} – ${fmt(b)}`;
         },
-        isFiltered: () => !api.isFull() || state.quarter !== 0 || state.cities.size !== DASH_CITIES.length,
+        isFiltered: () => !api.isFull() || state.quarter !== 0 || state.cities.size !== DASH_CITIES.length || !!state.condition,
 
         // Subscribe: handler(detail) is called after every change; keys = optional filter ("range", ...).
         on(handler, keys) {

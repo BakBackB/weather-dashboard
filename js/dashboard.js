@@ -46,7 +46,7 @@ function buildKpis() {
     const scoped = DashSync.rows();
     const scope = document.getElementById("kpiScope");
     if (scope) {
-        scope.textContent = `Figures for ${DashSync.rangeLabel()}${DashSync.quarter() ? " · " + DashSync.season().label : ""}` +
+        scope.textContent = `Figures for ${DashSync.rangeLabel()}${DashSync.quarter() ? " · " + DashSync.season().label : ""}${DashSync.condition() ? " · " + DashSync.conditionLabel() : ""}` +
             ` · ${d3.format(",")(scoped.length)} daily records`;
     }
 

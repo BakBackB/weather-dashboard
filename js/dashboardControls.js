@@ -93,6 +93,7 @@ function refreshControls() {
     const cityCount = DashSync.cities().size;
     const parts = [DashSync.rangeLabel()];
     if (DashSync.quarter()) parts.push(DashSync.season().label);
+    if (DashSync.condition()) parts.push(DashSync.conditionLabel());
     parts.push(cityCount === DASH_CITIES.length ? "all cities" : `${cityCount} of ${DASH_CITIES.length} cities`);
     const text = parts.join(" · ");
 

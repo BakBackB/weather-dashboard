@@ -119,7 +119,7 @@ function drawExtremeFrequency() {
     // Follow the global time window and season set by any other chart.
     DashSync.on(detail => {
         if (detail.source === "init") return;
-        if (detail.keys.includes("quarter")) annualSeason = getAnnualExtremeData(DashSync.rowsInSeason());
+        if (detail.keys.includes("quarter") || detail.keys.includes("condition")) annualSeason = getAnnualExtremeData(DashSync.rowsInSeason());
         const [first, last] = DashSync.years();
         panels.filter(panel => panel.field !== detail.source).forEach(panel => {
             // A drill-down to a year that left the time window closes.

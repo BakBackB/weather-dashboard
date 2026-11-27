@@ -52,7 +52,10 @@ function drawCorrelation() {
                 <div id="corrLegend" class="corr-legend"></div>
                 <div class="corr-actions">
                     <span id="corrSelectionText" class="corr-selection-text"></span>
-                    <button id="corrPush" class="corr-btn" type="button" disabled>Push selection to dashboard</button>
+                    <button id="corrPush" class="corr-btn corr-btn-primary" type="button" disabled
+                            title="Every chart on the dashboard then counts only days inside the selected humidity and temperature box">Filter dashboard to selection</button>
+                    <button id="corrZoom" class="corr-btn" type="button" disabled
+                            title="Set the dashboard time window to the first and last day of the selection">Zoom time to selection</button>
                     <button id="corrClear" class="corr-btn" type="button" disabled>Clear selection</button>
                 </div>
             </article>
@@ -72,8 +75,16 @@ function drawCorrelation() {
             <article class="card card-wide corr-drill-card">
                 <header class="card-head">
                     <h3>Drill-down: monthly summary → daily records</h3>
-                    <p>Summary of the selected days (all filtered days when nothing is selected). Click a row to list its days.</p>
+                    <p>Summary of the selected days (all filtered days when nothing is selected). Click a column header to sort, click a row to list its days.</p>
                 </header>
+                <div class="corr-filters">
+                    <label>City <select id="corrFCity"><option value="all">All cities</option>
+                        ${DASH_CITIES.map(c => `<option value="${c}">${c}</option>`).join("")}</select></label>
+                    <label>Rainfall <select id="corrFRain"><option value="all">Any</option>
+                        ${RAIN_LEVELS.map((l, i) => `<option value="${i}">${l.label}</option>`).join("")}</select></label>
+                    <label>Search <input id="corrFText" type="search" placeholder="e.g. Jul 2021 or Hanoi"></label>
+                    <button id="corrFReset" class="corr-btn" type="button" disabled>Clear filters</button>
+                </div>
                 <div class="corr-drill-bar">
                     <nav id="corrPath" class="corr-path" aria-label="Drill-down path"></nav>
                     <div class="corr-segment" role="group" aria-label="Group months by">
@@ -93,6 +104,7 @@ function drawCorrelation() {
 
     let data = [];            // filtered rows with finite values, plus pixel positions
     let selection = null;     // null = nothing brushed, else a subset of `data`
+    let brushBox = null;      // the brushed rectangle in pixels: [[x0, y0], [x1, y1]]
     let drill = { group: "calendar", key: null };
 
     // Fixed axes over the whole data set so the picture does not jump when a filter changes.
@@ -121,6 +133,7 @@ function drawCorrelation() {
         .on("brush end", event => {
             // Moves made by the code (brush.move(null) after a data change) are not user selections.
             if (!event.sourceEvent) return;
+            brushBox = event.selection;
             if (!event.selection) selection = null;
             else {
                 const [[x0, y0], [x1, y1]] = event.selection;
@@ -145,12 +158,22 @@ function drawCorrelation() {
 
     // ---------- data ----------
     function loadData() {
-        data = DashSync.rows(true)
+        // The scatter plot needs the days it selects from, so it ignores the dashboard's day condition.
+        data = DashSync.rows(true, false)
             .filter(d => [d.humidity, d.tempMean, d.precipitation, d.sunshineHours].every(Number.isFinite))
             .map(d => Object.assign(Object.create(d), { px: x(d.humidity), py: y(d.tempMean), level: rainLevel(d.precipitation) }));
         // Prototype-based copies keep the original row fields without copying 12k objects' data.
-        selection = null;
-        brushGroup.call(brush.move, null);
+        // When the dashboard is filtered by a box (set earlier with "Filter dashboard"), show that box as the selection.
+        const condition = DashSync.condition();
+        if (condition) {
+            selection = data.filter(d => DashSync.inCondition(d));
+            brushBox = [[x(condition.humidity[0]), y(condition.temp[1])], [x(condition.humidity[1]), y(condition.temp[0])]];
+            brushGroup.call(brush.move, brushBox);
+        } else {
+            selection = null;
+            brushBox = null;
+            brushGroup.call(brush.move, null);
+        }
     }
 
     // ---------- scatter (canvas) ----------
@@ -306,14 +329,34 @@ function drawCorrelation() {
         d3.select("#corrStats").selectAll("div").data(stats).join("div").attr("class", "corr-stat")
             .html(d => `<dt>${d[0]}</dt><dd>${d[1]}<small>${d[2]}</small></dd>`);
         const text = selection
-            ? `${fmt0(selection.length)} of ${fmt0(data.length)} days selected`
+            ? `${fmt0(selection.length)} of ${fmt0(data.length)} days selected` +
+              (DashSync.condition() ? " · dashboard is filtered to this box" : "")
             : "No selection: drag a rectangle on the scatter plot";
         d3.select("#corrSelectionText").text(text);
-        d3.select("#corrPush").property("disabled", !selection || !selection.length);
-        d3.select("#corrClear").property("disabled", !selection);
+        const applied = !!DashSync.condition();
+        d3.select("#corrPush").property("disabled", !selection || !selection.length)
+            .text(applied ? "Update dashboard filter" : "Filter dashboard to selection");
+        d3.select("#corrZoom").property("disabled", !selection || !selection.length);
+        d3.select("#corrClear").property("disabled", !selection && !applied);
     }
 
     // ---------- drill-down ----------
+    // Filters (city, rainfall level, text) apply to both tables; the column headers sort them.
+    let tableFilter = { city: "all", level: "all", text: "" };
+    let sortState = { month: { col: "key", dir: 1 }, day: { col: "date", dir: 1 } };
+    const DAY_PAGE = 40;
+    let dayLimit = DAY_PAGE;
+
+    function passFilter(d) {
+        if (tableFilter.city !== "all" && d.city !== tableFilter.city) return false;
+        if (tableFilter.level !== "all" && d.level !== +tableFilter.level) return false;
+        if (tableFilter.text) {
+            const label = `${fmtDate(d.date)} ${MONTHS[d.date.getMonth()]} ${d.date.getFullYear()} ${d.city}`.toLowerCase();
+            if (!label.includes(tableFilter.text)) return false;
+        }
+        return true;
+    }
+
     function groupKey(d) {
         return drill.group === "calendar" ? d.date.getMonth() : `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, "0")}`;
     }
@@ -324,13 +367,30 @@ function drawCorrelation() {
         return `${MONTHS[+month - 1]} ${year}`;
     }
 
+    // Header cells that sort: click = sort by this column, click again = reverse.
+    function sortableHeader(table, columns, state, redraw) {
+        table.append("thead").append("tr").selectAll("th").data(columns).join("th")
+            .attr("class", c => c.id ? "corr-sortable" : null)
+            .attr("aria-sort", c => c.id === state.col ? (state.dir > 0 ? "ascending" : "descending") : null)
+            .attr("title", c => c.id ? "Click to sort" : null)
+            .html(c => c.id === state.col ? `${c.label} <span class="corr-sort-mark">${state.dir > 0 ? "▲" : "▼"}</span>` : c.label)
+            .on("click", (event, c) => {
+                if (!c.id) return;
+                if (state.col === c.id) state.dir = -state.dir;
+                else { state.col = c.id; state.dir = c.id === "key" || c.id === "date" || c.id === "city" ? 1 : -1; }
+                redraw();
+            });
+    }
+
     function drawDrill() {
-        const rows = selection || data;
+        const rows = (selection || data).filter(passFilter);
         const host = d3.select("#corrDrill");
         const path = d3.select("#corrPath");
         host.selectAll("*").remove();
         path.selectAll("*").remove();
         d3.selectAll(".corr-segment button").classed("active", function() { return this.dataset.group === drill.group; });
+        const filtered = tableFilter.city !== "all" || tableFilter.level !== "all" || tableFilter.text !== "";
+        d3.select("#corrFReset").property("disabled", !filtered);
 
         const scope = selection ? "Selected days" : "All filtered days";
         if (drill.key === null) {
@@ -338,7 +398,7 @@ function drawCorrelation() {
             drawMonthTable(host, rows);
         } else {
             path.append("button").attr("type", "button").attr("class", "corr-path-step").text("← " + scope + " · by month")
-                .on("click", () => { drill.key = null; drawDrill(); });
+                .on("click", () => { drill.key = null; dayLimit = DAY_PAGE; drawDrill(); });
             path.append("span").attr("class", "corr-path-sep").text("›");
             path.append("span").attr("class", "corr-path-current").text(keyLabel(drill.key));
             drawDayTable(host, rows.filter(d => groupKey(d) === drill.key));
@@ -346,18 +406,29 @@ function drawCorrelation() {
     }
 
     function drawMonthTable(host, rows) {
-        const groups = d3.groups(rows, groupKey).sort((a, b) => d3.ascending(a[0], b[0]));
-        if (!groups.length) { host.append("p").attr("class", "corr-empty").text("No days in the current selection."); return; }
-        const maxRain = d3.max(groups, ([, v]) => d3.sum(v, d => d.precipitation)) || 1;
+        const sum = (v, f) => d3.sum(v, f);
+        const columns = [
+            { id: "key", label: "Month", value: g => g[0] },
+            { id: "days", label: "Days", value: g => g[1].length },
+            { id: "temp", label: "Mean temp (°C)", value: g => d3.mean(g[1], d => d.tempMean) },
+            { id: "hum", label: "Mean humidity (%)", value: g => d3.mean(g[1], d => d.humidity) },
+            { id: "rain", label: "Total rain (mm)", value: g => sum(g[1], d => d.precipitation) },
+            { id: null, label: "" }
+        ];
+        const state = sortState.month;
+        const byColumn = columns.find(c => c.id === state.col);
+        const groups = d3.groups(rows, groupKey).sort((a, b) => state.dir * d3.ascending(byColumn.value(a), byColumn.value(b)));
+        if (!groups.length) { host.append("p").attr("class", "corr-empty").text("No days match the current selection and filters."); return; }
+        const maxRain = d3.max(groups, ([, v]) => sum(v, d => d.precipitation)) || 1;
         const table = host.append("table").attr("class", "corr-table");
-        table.append("thead").append("tr").selectAll("th")
-            .data(["Month", "Days", "Mean temp (°C)", "Mean humidity (%)", "Total rain (mm)", ""]).join("th").text(d => d);
+        sortableHeader(table, columns, state, drawDrill);
+        const open = key => { drill.key = key; dayLimit = DAY_PAGE; drawDrill(); };
         const tr = table.append("tbody").selectAll("tr").data(groups).join("tr")
             .attr("class", "corr-row-click").attr("tabindex", 0)
             .attr("aria-label", ([key]) => `${keyLabel(key)}: show daily records`)
-            .on("click", (event, [key]) => { drill.key = key; drawDrill(); })
+            .on("click", (event, [key]) => open(key))
             .on("keydown", (event, [key]) => {
-                if (event.key === "Enter" || event.key === " ") { event.preventDefault(); drill.key = key; drawDrill(); }
+                if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(key); }
             });
         tr.append("td").text(([key]) => keyLabel(key));
         tr.append("td").text(([, v]) => fmt0(v.length));
@@ -369,39 +440,76 @@ function drawCorrelation() {
     }
 
     function drawDayTable(host, rows) {
-        const CAP = 40;
-        const sorted = [...rows].sort((a, b) => a.date - b.date || d3.ascending(a.city, b.city));
-        host.append("p").attr("class", "corr-note").text(sorted.length > CAP
-            ? `Showing the first ${CAP} of ${fmt0(sorted.length)} days (sorted by date).`
-            : `${fmt0(sorted.length)} days.`);
+        const columns = [
+            { id: "date", label: "Date", value: d => +d.date },
+            { id: "city", label: "City", value: d => d.city },
+            { id: "temp", label: "Temp (°C)", value: d => d.tempMean },
+            { id: "hum", label: "Humidity (%)", value: d => d.humidity },
+            { id: "rain", label: "Rain (mm)", value: d => d.precipitation },
+            { id: "sun", label: "Sunshine (h)", value: d => d.sunshineHours }
+        ];
+        const state = sortState.day;
+        const byColumn = columns.find(c => c.id === state.col);
+        const sorted = [...rows].sort((a, b) => state.dir * d3.ascending(byColumn.value(a), byColumn.value(b)) || a.date - b.date);
+        if (!sorted.length) { host.append("p").attr("class", "corr-empty").text("No days match the current selection and filters."); return; }
+        const shown = sorted.slice(0, dayLimit);
+        host.append("p").attr("class", "corr-note").text(
+            `Showing ${fmt0(shown.length)} of ${fmt0(sorted.length)} days · sorted by ${byColumn.label} ${state.dir > 0 ? "(low → high)" : "(high → low)"}`);
         const wrap = host.append("div").attr("class", "corr-day-wrap");
         const table = wrap.append("table").attr("class", "corr-table corr-day-table");
-        table.append("thead").append("tr").selectAll("th")
-            .data(["Date", "City", "Temp (°C)", "Humidity (%)", "Rain (mm)", "Sunshine (h)"]).join("th").text(d => d);
-        const tr = table.append("tbody").selectAll("tr").data(sorted.slice(0, CAP)).join("tr");
+        sortableHeader(table, columns, state, drawDrill);
+        const tr = table.append("tbody").selectAll("tr").data(shown).join("tr");
         tr.append("td").text(d => fmtDate(d.date));
         tr.append("td").html(d => `<span class="corr-dot" style="background:${CITY_COLORS[d.city]}"></span>${CITY_SHORT[d.city]}`);
         tr.append("td").text(d => fmt1(d.tempMean));
         tr.append("td").text(d => fmt0(d.humidity));
         tr.append("td").text(d => fmt1(d.precipitation));
         tr.append("td").text(d => fmt1(d.sunshineHours));
+        if (sorted.length > shown.length) {
+            host.append("button").attr("type", "button").attr("class", "corr-btn corr-more")
+                .text(`Show ${Math.min(DAY_PAGE, sorted.length - shown.length)} more`)
+                .on("click", () => { dayLimit += DAY_PAGE; drawDrill(); });
+        }
     }
 
     d3.selectAll(".corr-segment button").on("click", function() {
         drill = { group: this.dataset.group, key: null };
+        sortState.month = { col: "key", dir: 1 };
+        dayLimit = DAY_PAGE;
+        drawDrill();
+    });
+
+    // Filter bar above the tables.
+    d3.select("#corrFCity").on("change", function() { tableFilter.city = this.value; dayLimit = DAY_PAGE; drawDrill(); });
+    d3.select("#corrFRain").on("change", function() { tableFilter.level = this.value; dayLimit = DAY_PAGE; drawDrill(); });
+    d3.select("#corrFText").on("input", function() { tableFilter.text = this.value.trim().toLowerCase(); dayLimit = DAY_PAGE; drawDrill(); });
+    d3.select("#corrFReset").on("click", () => {
+        tableFilter = { city: "all", level: "all", text: "" };
+        document.getElementById("corrFCity").value = "all";
+        document.getElementById("corrFRain").value = "all";
+        document.getElementById("corrFText").value = "";
+        dayLimit = DAY_PAGE;
         drawDrill();
     });
 
     // ---------- buttons ----------
     d3.select("#corrClear").on("click", () => {
         selection = null;
+        brushBox = null;
         brushGroup.call(brush.move, null);
+        DashSync.setCondition(null, "correlation");   // also lifts the dashboard filter
         update();
     });
+    // The brushed box (humidity x temperature) becomes a filter on the days every chart counts.
     d3.select("#corrPush").on("click", () => {
+        if (!selection || !selection.length || !brushBox) return;
+        const [[x0, y0], [x1, y1]] = brushBox;
+        DashSync.setCondition({ humidity: [x.invert(x0), x.invert(x1)], temp: [y.invert(y1), y.invert(y0)] }, "correlation");
+    });
+    // Optional: also zoom the time window to the first and last selected day.
+    d3.select("#corrZoom").on("click", () => {
         if (!selection || !selection.length) return;
-        const dates = d3.extent(selection, d => d.date);
-        DashSync.setRange(dates, "correlation");
+        DashSync.setRange(d3.extent(selection, d => d.date), "correlation");
     });
 
     // ---------- update cycle ----------

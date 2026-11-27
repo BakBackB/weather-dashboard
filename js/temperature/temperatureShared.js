@@ -83,8 +83,8 @@ const temperatureFilters = { year: null, quarter: TEMP_QUARTERS[0], span: null }
 
 // Rows of the selected year, or of the year span, or of every year.
 function temperatureRows() {
-    if (temperatureFilters.year !== null) return rawParsedWeather.filter(d => d.date.getFullYear() === temperatureFilters.year);
-    return temperatureSpanRows();
+    if (temperatureFilters.year !== null) return rawParsedWeather.filter(d => d.date.getFullYear() === temperatureFilters.year && DashSync.inCondition(d));
+    return temperatureSpanRows().filter(DashSync.inCondition);
 }
 
 // Rows of the year span (every year when there is no span); ignores the single-year selection.
@@ -181,6 +181,8 @@ if (typeof DashSync !== "undefined") {
             else Object.assign(changes, { year: null, span: [first, last] });
         }
         if (detail.keys.includes("quarter")) changes.quarter = TEMP_QUARTERS[DashSync.quarter()];
+        // The day condition (scatter brush) changes the days these charts average: redraw them.
+        if (detail.keys.includes("condition")) setTemperatureFilters({}, true);
         setTemperatureFilters(changes, true);
     });
 }

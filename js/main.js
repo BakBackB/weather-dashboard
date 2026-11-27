@@ -399,7 +399,7 @@ if (typeof DashSync !== "undefined") {
         skipRainfallSync = true;   // the window was set elsewhere: do not send it back
         drawRainfallChart();
         skipRainfallSync = false;
-    }, ["range", "quarter"]);
+    }, ["range", "quarter", "condition"]);
 }
 
 // Draw rainfall chart based on the current state (year, month, day).

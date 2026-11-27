@@ -94,9 +94,9 @@ function drawExtremeHeatmap() {
             .style("display", function() { return selectedCities.has(this.dataset.city) ? null : "none"; });
         const host = d3.select("#extreme-heatmap");
         host.selectAll("*").remove();
-        const key = `${selectedYears}|${DashSync.quarter()}`;
+        const key = `${selectedYears}|${DashSync.quarter()}|${DashSync.conditionLabel()}`;
         if (key !== cellKey) {
-            const fullPeriod = selectedYears[0] === fullYears[0] && selectedYears[1] === fullYears[1] && !DashSync.quarter();
+            const fullPeriod = selectedYears[0] === fullYears[0] && selectedYears[1] === fullYears[1] && !DashSync.quarter() && !DashSync.condition();
             const cells = fullPeriod ? fullCells : getExtremeHeatmapCells(rawParsedWeather.filter(d =>
                 Number(d.year) >= selectedYears[0] && Number(d.year) <= selectedYears[1] && DashSync.inSeason(d)
             ));
