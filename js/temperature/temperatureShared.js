@@ -78,7 +78,27 @@ function addAxisLabel(svg, text, x, y, rotate = false) {
 }
 
 // --- Year and season filter shared by all temperature charts (the city checkboxes work separately) ---
-const temperatureFilters = { year: null, quarter: TEMP_QUARTERS[0] };
+// span: [first year, last year] when the global time window covers several (but not all) years; then year is null.
+const temperatureFilters = { year: null, quarter: TEMP_QUARTERS[0], span: null };
+
+// Rows of the selected year, or of the year span, or of every year.
+function temperatureRows() {
+    if (temperatureFilters.year !== null) return rawParsedWeather.filter(d => d.date.getFullYear() === temperatureFilters.year && DashSync.inCondition(d));
+    return temperatureSpanRows().filter(DashSync.inCondition);
+}
+
+// Rows of the year span (every year when there is no span); ignores the single-year selection.
+function temperatureSpanRows() {
+    const span = temperatureFilters.span;
+    return span ? rawParsedWeather.filter(d => d.date.getFullYear() >= span[0] && d.date.getFullYear() <= span[1]) : rawParsedWeather;
+}
+
+// Text for the current year selection.
+function temperatureYearLabel() {
+    const { year, span } = temperatureFilters;
+    if (year !== null) return String(year);
+    return span ? `${span[0]}–${span[1]} average` : "10-year average (2015–2025)";
+}
 let temperatureFiltersReady = false;
 
 // Builds the year slider and season buttons once; every chart calls this before drawing.
@@ -136,10 +156,35 @@ function syncTemperatureFilters() {
 }
 
 // Changes the filters and tells every chart to redraw.
-function setTemperatureFilters(changes) {
+// fromSync is true when the change comes from the global state (js/dashboardSync.js), so it is not sent back.
+function setTemperatureFilters(changes, fromSync = false) {
+    if (!fromSync && "year" in changes) changes = { ...changes, span: null };
     Object.assign(temperatureFilters, changes);
     syncTemperatureFilters();
+    if (!fromSync && typeof DashSync !== "undefined" && DashSync.ready) {
+        if ("year" in changes) DashSync.setYear(changes.year, "temperature");
+        if ("quarter" in changes) DashSync.setQuarter(TEMP_QUARTERS.indexOf(changes.quarter), "temperature");
+    }
     document.dispatchEvent(new Event("temperatureFiltersChanged"));
+}
+
+// The global time window and season drive this panel's year/season filter.
+if (typeof DashSync !== "undefined") {
+    DashSync.on(detail => {
+        if (detail.source === "init" || detail.source === "temperature" || !temperatureFiltersReady) return;
+        const changes = {};
+        if (detail.keys.includes("range")) {
+            const [first, last] = DashSync.years();
+            const [fullFirst, fullLast] = DashSync.fullYears();
+            if (first === last) Object.assign(changes, { year: first, span: null });
+            else if (first === fullFirst && last === fullLast) Object.assign(changes, { year: null, span: null });
+            else Object.assign(changes, { year: null, span: [first, last] });
+        }
+        if (detail.keys.includes("quarter")) changes.quarter = TEMP_QUARTERS[DashSync.quarter()];
+        // The day condition (scatter brush) changes the days these charts average: redraw them.
+        if (detail.keys.includes("condition")) setTemperatureFilters({}, true);
+        setTemperatureFilters(changes, true);
+    });
 }
 
 // Shows only the cities checked in the city filter, in every temperature chart.

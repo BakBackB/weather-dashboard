@@ -92,7 +92,7 @@ function drawTemperatureTypicalYear() {
     // Navigation path above the chart, e.g. "All years › April › 2019" or "2022 › February";
     // every step except the current one can be clicked to go back to it.
     function drawPath() {
-        const steps = [{ label: filters.year === null ? "All years" : String(filters.year), target: { level: "months" } }];
+        const steps = [{ label: filters.year === null ? (filters.span ? `${filters.span[0]}–${filters.span[1]}` : "All years") : String(filters.year), target: { level: "months" } }];
         if (view.level !== "months") {
             const monthName = d3.timeFormat("%B")(new Date(2000, view.d.month, 1));
             steps.push({ label: view.level === "month" ? `${monthName} (every year)` : monthName });
@@ -168,8 +168,8 @@ function drawTemperatureTypicalYear() {
         const move = selection => animate ? selection.transition().duration(TEMP_DURATION) : selection;
 
         // The 10-year average, or one year's months when a year is selected.
-        const rows = filters.year === null ? rawParsedWeather : rawParsedWeather.filter(d => d.date.getFullYear() === filters.year);
-        const values = filters.year === null ? climate : monthlyValues(rows);
+        const rows = temperatureRows();
+        const values = filters.year === null && !filters.span && !DashSync.condition() ? climate : monthlyValues(rows);
         const months = filters.quarter.months;
 
         // All 12 months are drawn; the season sets the visible part, so a new season zooms instead of jumping.
@@ -177,7 +177,7 @@ function drawTemperatureTypicalYear() {
         const y = fingerprintY;
 
         svg.select(".temp-fp-title")
-            .text(filters.year === null ? "10-year average (2015–2025)" : `Year ${filters.year}`);
+            .text(filters.year === null ? temperatureYearLabel() : `Year ${filters.year}`);
         move(svg.select(".temp-fp-x-axis"))
             .call(d3.axisBottom(x).tickValues(months).tickFormat(m => MONTH_LABELS[m]));
 
@@ -269,7 +269,7 @@ function drawTemperatureTypicalYear() {
     // Level 2: the clicked month in every year, the clicked city highlighted.
     function drawMonth(d) {
         const monthName = d3.timeFormat("%B")(new Date(2000, d.month, 1));
-        const perYear = summarizeGroups(rawParsedWeather.filter(r => r.date.getMonth() === d.month),
+        const perYear = summarizeGroups((filters.year === null ? temperatureSpanRows() : rawParsedWeather).filter(r => r.date.getMonth() === d.month && DashSync.inCondition(r)),
             r => r.city, r => r.date.getFullYear(), (v, city, year) => ({
                 city, year,
                 mean: average(v, r => r.tempMean),

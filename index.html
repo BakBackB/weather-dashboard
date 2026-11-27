@@ -9,6 +9,7 @@
     <!-- Stylesheets -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/extremes.css">
     <!-- Load D3.js v7 -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
@@ -86,13 +87,41 @@
                     <button id="rainfallBackButton" class="back-btn">← Back</button>
                     <span id="rainfallViewLabel" class="view-label"></span>
                 </div>              
+                <div id="rainfallCityFilters" class="city-filters rainfall-city-filters" role="group" aria-label="Filter rainfall charts by city">
+                    <span class="filter-group-label">Show cities:</span>
+                    <label class="filter-label hanoi-label">
+                        <input type="checkbox" value="Hanoi" checked> Hanoi
+                    </label>
+                    <label class="filter-label danang-label">
+                        <input type="checkbox" value="Da Nang" checked> Da Nang
+                    </label>
+                    <label class="filter-label hcm-label">
+                        <input type="checkbox" value="Ho Chi Minh City" checked> Ho Chi Minh City
+                    </label>
+                </div>
             </div>
             <div id="rainfall-chart"></div>
 
+            <section id="rainfall-duration-breakdown" class="rainfall-duration-breakdown" hidden>
+                <h3>Daily Rainfall Amount vs. Duration</h3>
+                <p>Each point is one day in the selected month. Farther right means more rainfall; higher means more hours of rain. High rainfall over few hours suggests a brief, intense event; moderate rainfall over many hours suggests persistent rain. The selected day is highlighted.</p>
+                <p id="rainfall-duration-summary" class="rainfall-duration-summary"></p>
+                <div id="rainfall-duration-chart" class="rainfall-duration-chart"></div>
+            </section>
+
             <h3>Daily Rainfall Calendar</h3>
+            <div class="rainfall-calendar-layout">
             <div id="rainfall-heatmap"></div>
 
             <aside id="rainfall-detail" hidden></aside>
+            </div>
+
+            <h3 class="extreme-chart-title">Synchronized Precipitation–Humidity Trend</h3>
+            <p class="chart-description">Color identifies city. Solid lines show precipitation (mm); dashed lines show humidity (%). 
+                The precipitation and humidity values for each month in the original chart represent the averages for that specific month over the period from 2015 to 2025.
+                For monthly data, the values are averages of each day's measurements. (Example: the value of precipitation and humidity of June, 2020 is the average of all
+                dates in that month)</p>
+            <div id="precipitation-humidity-chart" class="precipitation-humidity-chart"></div>
         </section>
 
         <section id="extremes" class="tab-panel" hidden>
@@ -112,7 +141,23 @@
                     </label>
                 </div>
             </div>
+            <div class="extreme-chart-layout">
             <div id="hot-days-chart" class="extreme-chart"></div>
+                <div class="extreme-threshold">
+                    <label for="hotDaysChangeThreshold">Highlight changes ≥</label>
+                    <div class="extreme-threshold-value">
+                        <input id="hotDaysChangeThreshold" type="number" min="1" max="366" step="1" value="30" required>
+                        <span>days</span>
+                    </div>
+                </div>
+            </div>
+            <div class="extreme-zoom-row">
+                <div id="hotDaysBrush" class="extreme-chart extreme-overview"></div>
+                <button id="hotDaysResetZoom" class="extreme-reset" type="button">Reset range</button>
+            </div>
+            <div class="controls">
+                <span id="hotDaysYearRange" class="view-label" aria-live="polite"></span>
+            </div>
             <h3 class="extreme-chart-title">Annual Heavy Rainfall Days (&gt;50 mm)</h3>
             <div class="controls">
                 <span class="view-label">Annual Counts by City</span>
@@ -128,7 +173,97 @@
                     </label>
                 </div>
             </div>
+            <div class="extreme-chart-layout">
             <div id="heavy-rain-days-chart" class="extreme-chart"></div>
+                <div class="extreme-threshold">
+                    <label for="heavyRainDaysChangeThreshold">Highlight changes ≥</label>
+                    <div class="extreme-threshold-value">
+                        <input id="heavyRainDaysChangeThreshold" type="number" min="1" max="366" step="1" value="5" required>
+                        <span>days</span>
+                    </div>
+                </div>
+            </div>
+            <div class="extreme-zoom-row">
+                <div id="heavyRainDaysBrush" class="extreme-chart extreme-overview"></div>
+                <button id="heavyRainDaysResetZoom" class="extreme-reset" type="button">Reset range</button>
+            </div>
+            <div class="controls">
+                <span id="heavyRainDaysYearRange" class="view-label" aria-live="polite"></span>
+            </div>
+
+            <section class="extreme-analysis" aria-label="Extreme day frequency">
+                <h4 class="extreme-chart-title">Number of Hot Days (&gt;35°C)</h4>
+                <p class="extreme-note">Click a bar to see monthly counts for that city and year.</p>
+                <div id="extremeFrequencyLegend" class="extreme-frequency-legend" role="list" aria-label="City colours for hot day frequency"></div>
+                <nav id="extreme-frequency-hot-path" class="extreme-frequency-path" aria-label="Hot day frequency navigation" hidden></nav>
+                <div id="extreme-frequency-hot" class="extreme-chart"></div>
+                <h4 class="extreme-chart-title">Number of Heavy Rainfall Days (&gt;50 mm)</h4>
+                <p class="extreme-note">Click a bar to see monthly counts for that city and year.</p>
+                <div id="extremeRainFrequencyLegend" class="extreme-frequency-legend" role="list" aria-label="City colours for heavy rainfall frequency"></div>
+                <nav id="extreme-frequency-rain-path" class="extreme-frequency-path" aria-label="Heavy rainfall frequency navigation" hidden></nav>
+                <div id="extreme-frequency-rain" class="extreme-chart"></div>
+            </section>
+
+            <section class="extreme-analysis" aria-labelledby="extreme-heat-title">
+                <h3 id="extreme-heat-title" class="extreme-chart-title">Apparent Temperature and Humidity</h3>
+                <p class="extreme-note">Colour: mean maximum apparent temperature · Grey: no observations.</p>
+                <div class="extreme-heatmap-toolbar">
+                    <div id="extremeHeatmapCities" class="city-filters" role="group" aria-label="Cities for apparent temperature maps"></div>
+                    <div id="extreme-heatmap-legend" class="extreme-chart extreme-colour-legend"></div>
+                </div>
+                <div id="extreme-heatmap" class="extreme-heatmap-grid"></div>
+                <div class="extreme-zoom-row">
+                    <div id="extremeHeatmapBrush" class="extreme-chart extreme-overview"></div>
+                    <button id="extremeHeatmapResetRange" class="extreme-reset" type="button">Reset range</button>
+                </div>
+                <div class="controls">
+                    <span id="extremeHeatmapYearRange" class="view-label" aria-live="polite"></span>
+                </div>
+            </section>
+
+            <section class="extreme-analysis" aria-labelledby="extreme-storm-title">
+                <h3 id="extreme-storm-title" class="extreme-chart-title">Conditions Around Heavy Rainfall</h3>
+                <p class="extreme-note">Only days with rainfall &gt;50 mm</p>
+                <div id="extreme-storm-plots">
+                    <h4 class="extreme-chart-title">Maximum Wind Speed (km/h)</h4>
+                    <div id="extremeWindCities" class="city-filters" role="group" aria-label="Cities for maximum wind speed"></div>
+                    <div id="extreme-storm-wind" class="extreme-chart"></div>
+                    <div class="extreme-zoom-row">
+                        <div id="extremeWindBrush" class="extreme-chart extreme-overview"></div>
+                        <button id="extremeWindResetRange" class="extreme-reset" type="button">Reset range</button>
+                    </div>
+                    <div class="controls">
+                        <span id="extremeWindRange" class="view-label" aria-live="polite"></span>
+                    </div>
+                    <h4 class="extreme-chart-title">Prevailing Wind Direction</h4>
+                    <p class="extreme-note">Wind from · Days by direction · Click a city’s bar to see monthly counts</p>
+                    <div class="extreme-direction-layout">
+                        <div id="extremeStormDirectionLegend" class="extreme-city-legend" role="list" aria-label="Wind direction colours"></div>
+                        <div id="extremeStormDirectionPath" class="extreme-frequency-path" aria-live="polite" hidden></div>
+                        <div id="extreme-storm-direction" class="extreme-chart"></div>
+                        <div class="extreme-zoom-row">
+                            <div id="extremeDirectionBrush" class="extreme-chart extreme-overview"></div>
+                            <button id="extremeDirectionResetRange" class="extreme-reset" type="button">Reset range</button>
+                        </div>
+                        <div class="controls">
+                            <span id="extremeDirectionRange" class="view-label" aria-live="polite"></span>
+                        </div>
+                        <aside class="extreme-direction-roses" aria-label="Wind roses for the selected date range">
+                            <div id="extremeDirectionRoses"></div>
+                        </aside>
+                    </div>
+                    <h4 class="extreme-chart-title">Sunshine (hours)</h4>
+                    <div id="extremeSunshineCities" class="city-filters" role="group" aria-label="Cities for sunshine duration"></div>
+                    <div id="extreme-storm-sunshine" class="extreme-chart"></div>
+                </div>
+                <div class="extreme-zoom-row">
+                    <div id="extremeStormBrush" class="extreme-chart extreme-overview"></div>
+                    <button id="extremeStormResetRange" class="extreme-reset" type="button">Reset range</button>
+                </div>
+                <div class="controls">
+                    <span id="extremeStormRange" class="view-label" aria-live="polite"></span>
+                </div>
+            </section>
         </section>
     </div>
 
@@ -136,6 +271,11 @@
     <script src="js/tabs.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/filters.js"></script>
+    <script src="js/extremes/extremeShared.js"></script>
+    <script src="js/extremes/extremeTrends.js"></script>
+    <script src="js/extremes/extremeFrequency.js"></script>
+    <script src="js/extremes/extremeHeatmap.js"></script>
+    <script src="js/extremes/extremeStormDrivers.js"></script>
     <script src="js/dataLoader.js"></script>
     <script src="js/temperature/temperatureShared.js"></script>
     <script src="js/temperature/temperatureTypicalYear.js"></script>
